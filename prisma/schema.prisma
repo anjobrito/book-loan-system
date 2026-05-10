@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("USER")
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  password String
+  role     String @default("USER")
 
-  ownedCopies   BookCopy[] @relation("BookOwner")
-  borrowedLoans Loan[]     @relation("BorrowerLoans")
+  ownedCopies   BookCopy[]     @relation("BookOwner")
+  borrowedLoans Loan[]         @relation("BorrowerLoans")
+  ownedLoans    Loan[]         @relation("OwnerLoans")
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -26,7 +28,6 @@ model Book {
   title           String
   type            String
   synopsis        String?
-  code            String  @unique
   edition         String?
   publicationYear Int?
   publisher       String?
@@ -40,10 +41,11 @@ model Book {
 }
 
 model BookCopy {
-  id        String  @id @default(cuid())
+  id        String @id @default(cuid())
   bookId    String
   ownerId   String
-  status    String  @default("AVAILABLE")
+  code      String @unique
+  status    String @default("AVAILABLE")
   condition String?
 
   book  Book @relation(fields: [bookId], references: [id])
@@ -68,6 +70,7 @@ model Loan {
 
   bookCopy BookCopy @relation(fields: [bookCopyId], references: [id])
   borrower User     @relation("BorrowerLoans", fields: [borrowerId], references: [id])
+  owner    User     @relation("OwnerLoans", fields: [ownerId], references: [id])
 
   history       LoanHistory[]
   notifications Notification[]
@@ -103,6 +106,7 @@ model Notification {
   status       String    @default("PENDING")
 
   loan Loan @relation(fields: [loanId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }

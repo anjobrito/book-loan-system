@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("USER")
+
+  ownedCopies   BookCopy[] @relation("BookOwner")
+  borrowedLoans Loan[]     @relation("BorrowerLoans")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Book {
+  id              String  @id @default(cuid())
+  title           String
+  type            String
+  synopsis        String?
+  code            String  @unique
+  edition         String?
+  publicationYear Int?
+  publisher       String?
+  author          String?
+  genre           String
+
+  copies BookCopy[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BookCopy {
+  id        String  @id @default(cuid())
+  bookId    String
+  ownerId   String
+  status    String  @default("AVAILABLE")
+  condition String?
+
+  book  Book @relation(fields: [bookId], references: [id])
+  owner User @relation("BookOwner", fields: [ownerId], references: [id])
+
+  loans   Loan[]
+  history LoanHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Loan {
+  id         String    @id @default(cuid())
+  bookCopyId String
+  borrowerId String
+  ownerId    String
+  loanDate   DateTime  @default(now())
+  dueDate    DateTime
+  returnDate DateTime?
+  status     String    @default("ACTIVE")
+
+  bookCopy BookCopy @relation(fields: [bookCopyId], references: [id])
+  borrower User     @relation("BorrowerLoans", fields: [borrowerId], references: [id])
+
+  history       LoanHistory[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LoanHistory {
+  id         String  @id @default(cuid())
+  loanId     String
+  bookCopyId String
+  fromUserId String?
+  toUserId   String?
+  action     String
+  notes      String?
+
+  loan     Loan     @relation(fields: [loanId], references: [id])
+  bookCopy BookCopy @relation(fields: [bookCopyId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id           String    @id @default(cuid())
+  loanId       String
+  userId       String
+  type         String
+  subject      String
+  message      String
+  scheduledFor DateTime
+  sentAt       DateTime?
+  status       String    @default("PENDING")
+
+  loan Loan @relation(fields: [loanId], references: [id])
+
+  createdAt DateTime @default(now())
+}

@@ -74,22 +74,6 @@ export default async function AdminLoansPage() {
               lembretes e devoluções.
             </p>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/admin/notifications"
-              className="rounded-xl border border-slate-700 px-5 py-3 text-center font-semibold text-white no-underline hover:bg-slate-800"
-            >
-              Ver notificações
-            </Link>
-
-            <Link
-              href="/books"
-              className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
-            >
-              Voltar ao catálogo
-            </Link>
-          </div>
         </div>
 
         {loans.length === 0 ? (

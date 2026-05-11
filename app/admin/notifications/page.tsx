@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 function formatDate(date: Date | null) {
@@ -64,13 +63,6 @@ export default async function AdminNotificationsPage() {
               Lembretes de devolução agendados pelo administrador.
             </p>
           </div>
-
-          <Link
-            href="/admin/loans"
-            className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
-          >
-            Voltar aos empréstimos
-          </Link>
         </div>
 
         {notifications.length === 0 ? (

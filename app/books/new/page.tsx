@@ -1,16 +1,9 @@
-import Link from "next/link";
 import NewBookForm from "./NewBookForm";
 
 export default function NewBookPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
       <section className="mx-auto max-w-5xl">
-        <Link
-          href="/books"
-          className="text-sm font-medium text-amber-300 hover:underline"
-        >
-          ← Voltar para catálogo
-        </Link>
 
         <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl">
           <div className="mb-8 text-center">

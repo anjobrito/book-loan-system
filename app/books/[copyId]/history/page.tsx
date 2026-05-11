@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
@@ -120,12 +119,6 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
     <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
       <section className="mx-auto max-w-6xl">
         <div className="mb-8">
-          <Link
-            href="/books"
-            className="text-sm text-amber-300 no-underline hover:underline"
-          >
-            ← Voltar para catálogo
-          </Link>
 
           <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow">
             <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">

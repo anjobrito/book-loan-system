@@ -1,7 +1,9 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <section className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 text-center">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 text-white">
+      <section className="mx-auto flex min-h-[calc(100vh-57px)] max-w-5xl flex-col items-center justify-center px-6 text-center">
         <p className="mb-4 rounded-full border border-amber-400/40 px-4 py-2 text-sm text-amber-300">
           Sistema de Empréstimos
         </p>
@@ -16,19 +18,26 @@ export default function Home() {
         </p>
 
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-          <a
+          <Link
             href="/books"
-            className="rounded-xl bg-amber-400 px-6 py-3 font-semibold text-slate-950 hover:bg-amber-300"
+            className="rounded-xl bg-amber-400 px-6 py-3 font-semibold text-slate-950 no-underline hover:bg-amber-300"
           >
             Ver catálogo
-          </a>
+          </Link>
 
-          <a
+          <Link
+            href="/books/new"
+            className="rounded-xl border border-slate-600 px-6 py-3 font-semibold text-white no-underline hover:bg-slate-800"
+          >
+            Cadastrar livro
+          </Link>
+
+          <Link
             href="/admin"
-            className="rounded-xl border border-slate-600 px-6 py-3 font-semibold text-white hover:bg-slate-800"
+            className="rounded-xl border border-slate-600 px-6 py-3 font-semibold text-white no-underline hover:bg-slate-800"
           >
             Painel administrativo
-          </a>
+          </Link>
         </div>
       </section>
     </main>

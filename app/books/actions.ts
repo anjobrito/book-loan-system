@@ -71,7 +71,7 @@ export async function createBookAction(
 
     const owner = await prisma.user.findUnique({
       where: {
-        email: "andre@email.com",
+        email: "anjobrito@gmail.com",
       },
     });
 

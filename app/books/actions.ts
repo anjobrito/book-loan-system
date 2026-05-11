@@ -158,9 +158,9 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
   }
 
   const borrowerEmail =
-    copy.owner.email === "andre@email.com"
+    copy.owner.email === "anjobrito@gmail.com"
       ? "carlos@email.com"
-      : "andre@email.com";
+      : "anjobrito@gmail.com";
 
   const borrower = await prisma.user.findUnique({
     where: {

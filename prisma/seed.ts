@@ -31,14 +31,14 @@ async function findOrCreateBook(data: {
 
 async function main() {
   const andre = await prisma.user.upsert({
-    where: { email: "andre@email.com" },
+    where: { email: "anjobrito@gmail.com" },
     update: {
       name: "André",
       role: "ADMIN",
     },
     create: {
       name: "André",
-      email: "andre@email.com",
+      email: "anjobrito@gmail.com",
       password: "123456",
       role: "ADMIN",
     },

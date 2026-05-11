@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendReturnReminderEmail } from "@/lib/email";
 
 export async function GET() {
   const now = new Date();
@@ -48,50 +49,68 @@ export async function GET() {
   );
 
   const processed = [];
+  const failed = [];
 
   for (const notification of dueNotifications) {
-    console.log("======================================");
-    console.log("SIMULAÇÃO DE ENVIO DE E-MAIL");
-    console.log("Para:", notification.user.email);
-    console.log("Nome:", notification.user.name);
-    console.log("Assunto:", notification.subject);
-    console.log("Mensagem:", notification.message);
-    console.log("Livro:", notification.loan.bookCopy.book.title);
-    console.log("Código:", notification.loan.bookCopy.code);
-    console.log(
-      "Devolver até:",
-      notification.loan.dueDate.toLocaleDateString("pt-BR")
-    );
-    console.log("======================================");
+    try {
+      const emailResult = await sendReturnReminderEmail({
+        to: notification.user.email,
+        userName: notification.user.name,
+        bookTitle: notification.loan.bookCopy.book.title,
+        bookCode: notification.loan.bookCopy.code,
+        dueDate: notification.loan.dueDate,
+        message: notification.message,
+      });
 
-    await prisma.$transaction(async (tx) => {
-      await tx.notification.update({
+      await prisma.$transaction(async (tx) => {
+        await tx.notification.update({
+          where: {
+            id: notification.id,
+          },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+          },
+        });
+
+        await tx.loanHistory.create({
+          data: {
+            loanId: notification.loanId,
+            bookCopyId: notification.loan.bookCopyId,
+            fromUserId: notification.loan.ownerId,
+            toUserId: notification.userId,
+            action: "REMINDER_SENT",
+            notes: `Lembrete de devolução enviado por e-mail para ${notification.user.email}.`,
+          },
+        });
+      });
+
+      processed.push({
+        notificationId: notification.id,
+        email: notification.user.email,
+        book: notification.loan.bookCopy.book.title,
+        resendResult: emailResult,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
+
+      await prisma.notification.update({
         where: {
           id: notification.id,
         },
         data: {
-          status: "SENT",
-          sentAt: new Date(),
+          status: "FAILED",
         },
       });
 
-      await tx.loanHistory.create({
-        data: {
-          loanId: notification.loanId,
-          bookCopyId: notification.loan.bookCopyId,
-          fromUserId: notification.loan.ownerId,
-          toUserId: notification.userId,
-          action: "REMINDER_SENT",
-          notes: `Lembrete de devolução enviado para ${notification.user.email}.`,
-        },
+      failed.push({
+        notificationId: notification.id,
+        email: notification.user.email,
+        book: notification.loan.bookCopy.book.title,
+        error: errorMessage,
       });
-    });
-
-    processed.push({
-      notificationId: notification.id,
-      email: notification.user.email,
-      book: notification.loan.bookCopy.book.title,
-    });
+    }
   }
 
   return NextResponse.json({
@@ -102,7 +121,9 @@ export async function GET() {
     duePendingWithActiveLoanCount: dueNotifications.length,
     duePendingWithInactiveLoanCount: inactiveLoanNotifications.length,
     processedCount: processed.length,
+    failedCount: failed.length,
     processed,
+    failed,
     futurePendingPreview: futureNotifications.map((notification) => ({
       id: notification.id,
       scheduledFor: notification.scheduledFor.toISOString(),

@@ -132,3 +132,79 @@ export async function createBookAction(
     };
   }
 }
+export async function requestLoanAction(formData: FormData): Promise<void> {
+  const bookCopyId = formData.get("bookCopyId");
+
+  if (typeof bookCopyId !== "string" || bookCopyId.trim().length === 0) {
+    return;
+  }
+
+  const copy = await prisma.bookCopy.findUnique({
+    where: {
+      id: bookCopyId,
+    },
+    include: {
+      owner: true,
+      book: true,
+    },
+  });
+
+  if (!copy) {
+    return;
+  }
+
+  if (copy.status !== "AVAILABLE") {
+    return;
+  }
+
+  const borrowerEmail =
+    copy.owner.email === "andre@email.com" ? "carlos@email.com" : "andre@email.com";
+
+  const borrower = await prisma.user.findUnique({
+    where: {
+      email: borrowerEmail,
+    },
+  });
+
+  if (!borrower) {
+    return;
+  }
+
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 7);
+
+  await prisma.$transaction(async (tx) => {
+    const loan = await tx.loan.create({
+      data: {
+        bookCopyId: copy.id,
+        borrowerId: borrower.id,
+        ownerId: copy.ownerId,
+        dueDate,
+        status: "ACTIVE",
+      },
+    });
+
+    await tx.bookCopy.update({
+      where: {
+        id: copy.id,
+      },
+      data: {
+        status: "BORROWED",
+      },
+    });
+
+    await tx.loanHistory.create({
+      data: {
+        loanId: loan.id,
+        bookCopyId: copy.id,
+        fromUserId: copy.ownerId,
+        toUserId: borrower.id,
+        action: "LOAN_CREATED",
+        notes: `${borrower.name} pegou "${copy.book.title}" emprestado de ${copy.owner.name}.`,
+      },
+    });
+  });
+
+  revalidatePath("/books");
+  revalidatePath("/admin");
+}

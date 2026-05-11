@@ -35,6 +35,13 @@ export default function Navbar() {
             </Link>
 
             <Link
+              href="/admin/loans"
+              className="text-light text-decoration-none fw-semibold"
+            >
+              Empréstimos
+            </Link>
+
+            <Link
               href="/admin"
               className="btn btn-outline-light btn-sm fw-bold"
             >

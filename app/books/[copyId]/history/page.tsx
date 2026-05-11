@@ -28,8 +28,16 @@ function getActionLabel(action: string) {
     return "Devolução registrada";
   }
 
+  if (action === "LOAN_RENEWED") {
+    return "Empréstimo renovado";
+  }
+
   if (action === "DUE_DATE_CHANGED") {
     return "Data de devolução alterada";
+  }
+
+  if (action === "REMINDER_SCHEDULED") {
+    return "Lembrete agendado";
   }
 
   if (action === "REMINDER_SENT") {
@@ -112,7 +120,10 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
     <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
       <section className="mx-auto max-w-6xl">
         <div className="mb-8">
-          <Link href="/books" className="text-sm text-amber-300 no-underline hover:underline">
+          <Link
+            href="/books"
+            className="text-sm text-amber-300 no-underline hover:underline"
+          >
             ← Voltar para catálogo
           </Link>
 
@@ -149,7 +160,9 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
 
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
                 <p className="text-sm text-slate-400">Dono</p>
-                <p className="mt-1 font-semibold text-white">{copy.owner.name}</p>
+                <p className="mt-1 font-semibold text-white">
+                  {copy.owner.name}
+                </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">

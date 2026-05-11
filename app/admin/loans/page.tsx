@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { returnLoanAction } from "../loan-actions";
+import { renewLoanAction, returnLoanAction } from "../loan-actions";
 import { createReturnReminderAction } from "../notification-actions";
 
 function formatDate(date: Date | null) {
@@ -70,8 +70,8 @@ export default async function AdminLoansPage() {
             <h1 className="text-3xl font-bold">Empréstimos</h1>
 
             <p className="mt-2 text-slate-300">
-              Controle de livros emprestados, responsáveis, lembretes e
-              devoluções.
+              Controle de livros emprestados, responsáveis, renovações,
+              lembretes e devoluções.
             </p>
           </div>
 
@@ -102,8 +102,17 @@ export default async function AdminLoansPage() {
           <div className="space-y-5">
             {loans.map((loan) => {
               const isActive = loan.status === "ACTIVE";
+
               const pendingNotifications = loan.notifications.filter(
                 (notification) => notification.status === "PENDING"
+              );
+
+              const sentNotifications = loan.notifications.filter(
+                (notification) => notification.status === "SENT"
+              );
+
+              const cancelledNotifications = loan.notifications.filter(
+                (notification) => notification.status === "CANCELLED"
               );
 
               return (
@@ -156,8 +165,24 @@ export default async function AdminLoansPage() {
                         </p>
 
                         <p>
-                          <span className="text-slate-500">Notificações pendentes:</span>{" "}
+                          <span className="text-slate-500">
+                            Notificações pendentes:
+                          </span>{" "}
                           {pendingNotifications.length}
+                        </p>
+
+                        <p>
+                          <span className="text-slate-500">
+                            Notificações enviadas:
+                          </span>{" "}
+                          {sentNotifications.length}
+                        </p>
+
+                        <p>
+                          <span className="text-slate-500">
+                            Notificações canceladas:
+                          </span>{" "}
+                          {cancelledNotifications.length}
                         </p>
                       </div>
                     </div>
@@ -171,16 +196,37 @@ export default async function AdminLoansPage() {
                       </Link>
 
                       {isActive ? (
-                        <form action={returnLoanAction}>
-                          <input type="hidden" name="loanId" value={loan.id} />
+                        <div className="space-y-3">
+                          <form action={renewLoanAction}>
+                            <input
+                              type="hidden"
+                              name="loanId"
+                              value={loan.id}
+                            />
 
-                          <button
-                            type="submit"
-                            className="w-full rounded-xl bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-400"
-                          >
-                            Registrar devolução
-                          </button>
-                        </form>
+                            <button
+                              type="submit"
+                              className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                            >
+                              Renovar +7 dias
+                            </button>
+                          </form>
+
+                          <form action={returnLoanAction}>
+                            <input
+                              type="hidden"
+                              name="loanId"
+                              value={loan.id}
+                            />
+
+                            <button
+                              type="submit"
+                              className="w-full rounded-xl bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-400"
+                            >
+                              Registrar devolução
+                            </button>
+                          </form>
+                        </div>
                       ) : (
                         <button
                           disabled
@@ -200,8 +246,14 @@ export default async function AdminLoansPage() {
                       <input type="hidden" name="loanId" value={loan.id} />
 
                       <h3 className="font-semibold text-amber-300">
-                        Agendar lembrete de devolução
+                        Agendar lembrete manual
                       </h3>
+
+                      <p className="mt-1 text-sm text-slate-400">
+                        O sistema já cria lembrete automático no empréstimo e na
+                        renovação. Use este formulário apenas para lembretes
+                        adicionais.
+                      </p>
 
                       <div className="mt-4 grid gap-4 lg:grid-cols-[220px_1fr_auto]">
                         <div>
@@ -238,7 +290,7 @@ export default async function AdminLoansPage() {
                         <div className="flex items-end">
                           <button
                             type="submit"
-                            className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                            className="w-full rounded-xl bg-slate-700 px-4 py-2 font-semibold text-white hover:bg-slate-600"
                           >
                             Agendar
                           </button>

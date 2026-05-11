@@ -22,6 +22,7 @@ export async function returnLoanAction(formData: FormData): Promise<void> {
       },
       borrower: true,
       owner: true,
+      notifications: true,
     },
   });
 
@@ -53,6 +54,16 @@ export async function returnLoanAction(formData: FormData): Promise<void> {
       },
     });
 
+    await tx.notification.updateMany({
+      where: {
+        loanId: loan.id,
+        status: "PENDING",
+      },
+      data: {
+        status: "CANCELLED",
+      },
+    });
+
     await tx.loanHistory.create({
       data: {
         loanId: loan.id,
@@ -60,7 +71,7 @@ export async function returnLoanAction(formData: FormData): Promise<void> {
         fromUserId: loan.borrowerId,
         toUserId: loan.ownerId,
         action: "RETURNED",
-        notes: `${loan.borrower.name} devolveu "${loan.bookCopy.book.title}" para ${loan.owner.name}.`,
+        notes: `${loan.borrower.name} devolveu "${loan.bookCopy.book.title}" para ${loan.owner.name}. Notificações pendentes foram canceladas.`,
       },
     });
   });
@@ -68,4 +79,6 @@ export async function returnLoanAction(formData: FormData): Promise<void> {
   revalidatePath("/books");
   revalidatePath("/admin");
   revalidatePath("/admin/loans");
+  revalidatePath("/admin/notifications");
+  revalidatePath(`/books/${loan.bookCopyId}/history`);
 }

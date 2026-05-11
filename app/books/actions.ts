@@ -158,7 +158,9 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
   }
 
   const borrowerEmail =
-    copy.owner.email === "andre@email.com" ? "carlos@email.com" : "andre@email.com";
+    copy.owner.email === "andre@email.com"
+      ? "carlos@email.com"
+      : "andre@email.com";
 
   const borrower = await prisma.user.findUnique({
     where: {
@@ -172,6 +174,9 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
 
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 7);
+
+  const reminderDate = new Date(dueDate);
+  reminderDate.setDate(reminderDate.getDate() - 1);
 
   await prisma.$transaction(async (tx) => {
     const loan = await tx.loan.create({
@@ -203,8 +208,35 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
         notes: `${borrower.name} pegou "${copy.book.title}" emprestado de ${copy.owner.name}.`,
       },
     });
+
+    await tx.notification.create({
+      data: {
+        loanId: loan.id,
+        userId: borrower.id,
+        type: "RETURN_REMINDER",
+        subject: `Lembrete de devolução: ${copy.book.title}`,
+        message: `Olá ${borrower.name}, este é um lembrete para devolver "${copy.book.title}" até ${dueDate.toLocaleDateString(
+          "pt-BR"
+        )}. Caso precise renovar o empréstimo, solicite a renovação antes do vencimento.`,
+        scheduledFor: reminderDate,
+        status: "PENDING",
+      },
+    });
+
+    await tx.loanHistory.create({
+      data: {
+        loanId: loan.id,
+        bookCopyId: copy.id,
+        fromUserId: copy.ownerId,
+        toUserId: borrower.id,
+        action: "REMINDER_SCHEDULED",
+        notes: `Lembrete automático agendado para ${borrower.name}.`,
+      },
+    });
   });
 
   revalidatePath("/books");
   revalidatePath("/admin");
+  revalidatePath("/admin/loans");
+  revalidatePath("/admin/notifications");
 }

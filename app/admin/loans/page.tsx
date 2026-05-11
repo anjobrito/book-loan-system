@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { returnLoanAction } from "../loan-actions";
+import { createReturnReminderAction } from "../notification-actions";
 
 function formatDate(date: Date | null) {
   if (!date) {
@@ -8,6 +9,13 @@ function formatDate(date: Date | null) {
   }
 
   return new Intl.DateTimeFormat("pt-BR").format(date);
+}
+
+function toDateTimeLocalValue(date: Date) {
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60 * 1000);
+
+  return localDate.toISOString().slice(0, 16);
 }
 
 function getLoanStatusLabel(status: string) {
@@ -40,11 +48,19 @@ export default async function AdminLoansPage() {
           book: true,
         },
       },
+      notifications: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",
     },
   });
+
+  const defaultReminderDate = new Date();
+  defaultReminderDate.setDate(defaultReminderDate.getDate() + 1);
 
   return (
     <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
@@ -54,16 +70,26 @@ export default async function AdminLoansPage() {
             <h1 className="text-3xl font-bold">Empréstimos</h1>
 
             <p className="mt-2 text-slate-300">
-              Controle de livros emprestados, responsáveis e devoluções.
+              Controle de livros emprestados, responsáveis, lembretes e
+              devoluções.
             </p>
           </div>
 
-          <Link
-            href="/books"
-            className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
-          >
-            Voltar ao catálogo
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/admin/notifications"
+              className="rounded-xl border border-slate-700 px-5 py-3 text-center font-semibold text-white no-underline hover:bg-slate-800"
+            >
+              Ver notificações
+            </Link>
+
+            <Link
+              href="/books"
+              className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
+            >
+              Voltar ao catálogo
+            </Link>
+          </div>
         </div>
 
         {loans.length === 0 ? (
@@ -73,100 +99,156 @@ export default async function AdminLoansPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-slate-800 bg-slate-950 text-slate-300">
-                  <tr>
-                    <th className="px-4 py-3">Livro</th>
-                    <th className="px-4 py-3">Código</th>
-                    <th className="px-4 py-3">Dono</th>
-                    <th className="px-4 py-3">Com quem está</th>
-                    <th className="px-4 py-3">Empréstimo</th>
-                    <th className="px-4 py-3">Devolver até</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Ação</th>
-                  </tr>
-                </thead>
+          <div className="space-y-5">
+            {loans.map((loan) => {
+              const isActive = loan.status === "ACTIVE";
+              const pendingNotifications = loan.notifications.filter(
+                (notification) => notification.status === "PENDING"
+              );
 
-                <tbody className="divide-y divide-slate-800">
-                  {loans.map((loan) => {
-                    const isActive = loan.status === "ACTIVE";
+              return (
+                <article
+                  key={loan.id}
+                  className="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow"
+                >
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-2xl font-bold">
+                          {loan.bookCopy.book.title}
+                        </h2>
 
-                    return (
-                      <tr key={loan.id} className="align-middle">
-                        <td className="px-4 py-4">
-                          <div>
-                            <p className="font-semibold text-white">
-                              {loan.bookCopy.book.title}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              {loan.bookCopy.book.type} ·{" "}
-                              {loan.bookCopy.book.genre}
-                            </p>
-                          </div>
-                        </td>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            isActive
+                              ? "bg-amber-500/20 text-amber-300"
+                              : "bg-green-500/20 text-green-300"
+                          }`}
+                        >
+                          {getLoanStatusLabel(loan.status)}
+                        </span>
+                      </div>
 
-                        <td className="px-4 py-4 text-slate-300">
+                      <div className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-3">
+                        <p>
+                          <span className="text-slate-500">Código:</span>{" "}
                           {loan.bookCopy.code}
-                        </td>
+                        </p>
 
-                        <td className="px-4 py-4 text-slate-300">
+                        <p>
+                          <span className="text-slate-500">Dono:</span>{" "}
                           {loan.owner.name}
-                        </td>
+                        </p>
 
-                        <td className="px-4 py-4 text-slate-300">
+                        <p>
+                          <span className="text-slate-500">Com:</span>{" "}
                           {loan.borrower.name}
-                        </td>
+                        </p>
 
-                        <td className="px-4 py-4 text-slate-300">
+                        <p>
+                          <span className="text-slate-500">Empréstimo:</span>{" "}
                           {formatDate(loan.loanDate)}
-                        </td>
+                        </p>
 
-                        <td className="px-4 py-4 text-slate-300">
+                        <p>
+                          <span className="text-slate-500">Devolver até:</span>{" "}
                           {formatDate(loan.dueDate)}
-                        </td>
+                        </p>
 
-                        <td className="px-4 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              isActive
-                                ? "bg-amber-500/20 text-amber-300"
-                                : "bg-green-500/20 text-green-300"
-                            }`}
+                        <p>
+                          <span className="text-slate-500">Notificações pendentes:</span>{" "}
+                          {pendingNotifications.length}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 lg:w-72">
+                      <Link
+                        href={`/books/${loan.bookCopyId}/history`}
+                        className="rounded-xl border border-slate-700 px-4 py-2 text-center font-semibold text-white no-underline hover:bg-slate-800"
+                      >
+                        Ver histórico
+                      </Link>
+
+                      {isActive ? (
+                        <form action={returnLoanAction}>
+                          <input type="hidden" name="loanId" value={loan.id} />
+
+                          <button
+                            type="submit"
+                            className="w-full rounded-xl bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-400"
                           >
-                            {getLoanStatusLabel(loan.status)}
-                          </span>
-                        </td>
+                            Registrar devolução
+                          </button>
+                        </form>
+                      ) : (
+                        <button
+                          disabled
+                          className="w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
+                        >
+                          Finalizado
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                        <td className="px-4 py-4 text-right">
-                          {isActive ? (
-                            <form action={returnLoanAction}>
-                              <input
-                                type="hidden"
-                                name="loanId"
-                                value={loan.id}
-                              />
+                  {isActive && (
+                    <form
+                      action={createReturnReminderAction}
+                      className="mt-6 rounded-2xl border border-slate-800 bg-slate-950 p-4"
+                    >
+                      <input type="hidden" name="loanId" value={loan.id} />
 
-                              <button
-                                type="submit"
-                                className="rounded-xl bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-400"
-                              >
-                                Registrar devolução
-                              </button>
-                            </form>
-                          ) : (
-                            <span className="text-sm text-slate-500">
-                              Finalizado
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      <h3 className="font-semibold text-amber-300">
+                        Agendar lembrete de devolução
+                      </h3>
+
+                      <div className="mt-4 grid gap-4 lg:grid-cols-[220px_1fr_auto]">
+                        <div>
+                          <label className="mb-2 block text-sm text-slate-300">
+                            Data de envio
+                          </label>
+
+                          <input
+                            type="datetime-local"
+                            name="scheduledFor"
+                            required
+                            defaultValue={toDateTimeLocalValue(
+                              defaultReminderDate
+                            )}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm text-slate-300">
+                            Mensagem
+                          </label>
+
+                          <input
+                            name="message"
+                            required
+                            defaultValue={`Olá ${loan.borrower.name}, lembrete para devolver "${loan.bookCopy.book.title}" até ${formatDate(
+                              loan.dueDate
+                            )}.`}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div className="flex items-end">
+                          <button
+                            type="submit"
+                            className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                          >
+                            Agendar
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

@@ -42,6 +42,13 @@ export default function Navbar() {
             </Link>
 
             <Link
+              href="/admin/notifications"
+              className="text-light text-decoration-none fw-semibold"
+            >
+              Notificações
+            </Link>
+
+            <Link
               href="/admin"
               className="btn btn-outline-light btn-sm fw-bold"
             >

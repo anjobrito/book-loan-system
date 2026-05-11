@@ -1,13 +1,8 @@
-/* eslint-disable @next/next/no-html-link-for-pages */
 export default function AdminPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <section className="mx-auto max-w-6xl">
-        <a href="/" className="text-sm text-amber-300 hover:underline">
-          Voltar para início
-        </a>
-
-        <h1 className="mt-4 text-3xl font-bold">Painel Administrativo</h1>
+        <h1 className="text-3xl font-bold">Painel Administrativo</h1>
 
         <p className="mt-2 text-slate-300">
           Aqui o administrador poderá controlar empréstimos, devoluções e

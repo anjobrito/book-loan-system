@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { cancelReservationAction } from "../reservation-actions";
 
 function formatDate(date: Date | null) {
   if (!date) {
@@ -85,12 +86,14 @@ export default async function AdminReservationsPage() {
                     <th className="px-4 py-3">Com quem está</th>
                     <th className="px-4 py-3">Criada em</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Ação</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-800">
                   {reservations.map((reservation) => {
                     const activeLoan = reservation.bookCopy.loans[0];
+                    const isActive = reservation.status === "ACTIVE";
 
                     return (
                       <tr key={reservation.id}>
@@ -139,6 +142,32 @@ export default async function AdminReservationsPage() {
                           >
                             {getReservationStatusLabel(reservation.status)}
                           </span>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {isActive ? (
+                            <form action={cancelReservationAction}>
+                              <input
+                                type="hidden"
+                                name="reservationId"
+                                value={reservation.id}
+                              />
+
+                              <button
+                                type="submit"
+                                className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-400"
+                              >
+                                Cancelar reserva
+                              </button>
+                            </form>
+                          ) : (
+                            <button
+                              disabled
+                              className="cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
+                            >
+                              Sem ação
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

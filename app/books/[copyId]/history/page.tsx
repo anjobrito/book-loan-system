@@ -55,6 +55,10 @@ function getActionLabel(action: string) {
     return "Reserva atendida";
   }
 
+  if (action === "RESERVATION_CANCELLED") {
+    return "Reserva cancelada";
+  }
+
   if (action === "CANCELLED") {
     return "Empréstimo cancelado";
   }

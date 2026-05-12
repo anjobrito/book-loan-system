@@ -51,6 +51,10 @@ function getActionLabel(action: string) {
     return "Reserva criada";
   }
 
+  if (action === "RESERVATION_FULFILLED") {
+    return "Reserva atendida";
+  }
+
   if (action === "CANCELLED") {
     return "Empréstimo cancelado";
   }
@@ -200,9 +204,7 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
 
             {copy.reservations.length > 0 && (
               <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-                <p className="font-semibold text-red-300">
-                  Reservas ativas
-                </p>
+                <p className="font-semibold text-red-300">Reservas ativas</p>
 
                 <div className="mt-2 space-y-1 text-sm text-red-100">
                   {copy.reservations.map((reservation, index) => (

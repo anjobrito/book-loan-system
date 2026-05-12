@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requestLoanAction } from "./actions";
+import { createReservationAction, requestLoanAction } from "./actions";
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("pt-BR").format(date);
@@ -22,6 +22,17 @@ export default async function BooksPage() {
           createdAt: "desc",
         },
         take: 1,
+      },
+      reservations: {
+        where: {
+          status: "ACTIVE",
+        },
+        include: {
+          user: true,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
       },
     },
     orderBy: {
@@ -58,6 +69,10 @@ export default async function BooksPage() {
             {copies.map((copy) => {
               const activeLoan = copy.loans[0];
               const isAvailable = copy.status === "AVAILABLE";
+              const hasActiveReservations = copy.reservations.length > 0;
+              const marinaReservation = copy.reservations.find(
+                (reservation) => reservation.user.email === "marina@email.com"
+              );
 
               return (
                 <article
@@ -102,6 +117,13 @@ export default async function BooksPage() {
                         <p>Devolver até: {formatDate(activeLoan.dueDate)}</p>
                       </div>
                     )}
+
+                    {hasActiveReservations && (
+                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
+                        <p>Reservas ativas: {copy.reservations.length}</p>
+                        <p>Primeiro da fila: {copy.reservations[0].user.name}</p>
+                      </div>
+                    )}
                   </div>
 
                   {isAvailable ? (
@@ -115,13 +137,24 @@ export default async function BooksPage() {
                         Solicitar empréstimo
                       </button>
                     </form>
-                  ) : (
+                  ) : marinaReservation ? (
                     <button
                       disabled
                       className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
                     >
-                      Indisponível
+                      Reserva registrada
                     </button>
+                  ) : (
+                    <form action={createReservationAction}>
+                      <input type="hidden" name="bookCopyId" value={copy.id} />
+
+                      <button
+                        type="submit"
+                        className="mt-5 w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                      >
+                        Reservar exemplar
+                      </button>
+                    </form>
                   )}
                 </article>
               );

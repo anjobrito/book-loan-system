@@ -46,6 +46,17 @@ export default async function AdminLoansPage() {
       bookCopy: {
         include: {
           book: true,
+          reservations: {
+            where: {
+              status: "ACTIVE",
+            },
+            include: {
+              user: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
       },
       notifications: {
@@ -86,6 +97,8 @@ export default async function AdminLoansPage() {
           <div className="space-y-5">
             {loans.map((loan) => {
               const isActive = loan.status === "ACTIVE";
+              const hasActiveReservations =
+                loan.bookCopy.reservations.length > 0;
 
               const pendingNotifications = loan.notifications.filter(
                 (notification) => notification.status === "PENDING"
@@ -120,6 +133,12 @@ export default async function AdminLoansPage() {
                         >
                           {getLoanStatusLabel(loan.status)}
                         </span>
+
+                        {hasActiveReservations && (
+                          <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300">
+                            Possui reserva ativa
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-3">
@@ -168,7 +187,27 @@ export default async function AdminLoansPage() {
                           </span>{" "}
                           {cancelledNotifications.length}
                         </p>
+
+                        <p>
+                          <span className="text-slate-500">
+                            Reservas ativas:
+                          </span>{" "}
+                          {loan.bookCopy.reservations.length}
+                        </p>
                       </div>
+
+                      {hasActiveReservations && (
+                        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+                          <p className="font-semibold">
+                            Renovação bloqueada por reserva ativa.
+                          </p>
+
+                          <p className="mt-1">
+                            Primeiro da fila:{" "}
+                            {loan.bookCopy.reservations[0].user.name}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-3 lg:w-72">
@@ -181,20 +220,29 @@ export default async function AdminLoansPage() {
 
                       {isActive ? (
                         <div className="space-y-3">
-                          <form action={renewLoanAction}>
-                            <input
-                              type="hidden"
-                              name="loanId"
-                              value={loan.id}
-                            />
-
+                          {hasActiveReservations ? (
                             <button
-                              type="submit"
-                              className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                              disabled
+                              className="w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
                             >
-                              Renovar +7 dias
+                              Renovação bloqueada
                             </button>
-                          </form>
+                          ) : (
+                            <form action={renewLoanAction}>
+                              <input
+                                type="hidden"
+                                name="loanId"
+                                value={loan.id}
+                              />
+
+                              <button
+                                type="submit"
+                                className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                              >
+                                Renovar +7 dias
+                              </button>
+                            </form>
+                          )}
 
                           <form action={returnLoanAction}>
                             <input

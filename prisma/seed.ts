@@ -58,6 +58,20 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: "marina@email.com" },
+    update: {
+      name: "Marina",
+      role: "USER",
+    },
+    create: {
+      name: "Marina",
+      email: "marina@email.com",
+      password: "123456",
+      role: "USER",
+    },
+  });
+
   const batman = await findOrCreateBook({
     title: "Batman: Ano Um",
     type: "COMIC",

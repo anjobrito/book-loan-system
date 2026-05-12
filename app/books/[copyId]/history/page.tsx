@@ -31,6 +31,10 @@ function getActionLabel(action: string) {
     return "Empréstimo renovado";
   }
 
+  if (action === "LOAN_RENEWAL_BLOCKED") {
+    return "Renovação bloqueada";
+  }
+
   if (action === "DUE_DATE_CHANGED") {
     return "Data de devolução alterada";
   }
@@ -41,6 +45,10 @@ function getActionLabel(action: string) {
 
   if (action === "REMINDER_SENT") {
     return "Lembrete enviado";
+  }
+
+  if (action === "RESERVATION_CREATED") {
+    return "Reserva criada";
   }
 
   if (action === "CANCELLED") {
@@ -106,6 +114,17 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
           owner: true,
         },
       },
+      reservations: {
+        where: {
+          status: "ACTIVE",
+        },
+        include: {
+          user: true,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
     },
   });
 
@@ -119,7 +138,6 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
     <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
       <section className="mx-auto max-w-6xl">
         <div className="mb-8">
-
           <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow">
             <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
               <div>
@@ -176,6 +194,23 @@ export default async function BookCopyHistoryPage({ params }: HistoryPageProps) 
                   <p>Com: {activeLoan.borrower.name}</p>
                   <p>Desde: {formatDate(activeLoan.loanDate)}</p>
                   <p>Devolver até: {formatDate(activeLoan.dueDate)}</p>
+                </div>
+              </div>
+            )}
+
+            {copy.reservations.length > 0 && (
+              <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+                <p className="font-semibold text-red-300">
+                  Reservas ativas
+                </p>
+
+                <div className="mt-2 space-y-1 text-sm text-red-100">
+                  {copy.reservations.map((reservation, index) => (
+                    <p key={reservation.id}>
+                      {index + 1}. {reservation.user.name} -{" "}
+                      {formatDate(reservation.createdAt)}
+                    </p>
+                  ))}
                 </div>
               </div>
             )}

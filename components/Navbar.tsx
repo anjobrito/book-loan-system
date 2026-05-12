@@ -42,6 +42,13 @@ export default function Navbar() {
             </Link>
 
             <Link
+              href="/admin/reservations"
+              className="text-light text-decoration-none fw-semibold"
+            >
+              Reservas
+            </Link>
+
+            <Link
               href="/admin/notifications"
               className="text-light text-decoration-none fw-semibold"
             >

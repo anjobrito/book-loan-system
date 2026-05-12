@@ -132,6 +132,7 @@ export async function createBookAction(
     };
   }
 }
+
 export async function requestLoanAction(formData: FormData): Promise<void> {
   const bookCopyId = formData.get("bookCopyId");
 
@@ -239,4 +240,99 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
   revalidatePath("/admin/loans");
   revalidatePath("/admin/notifications");
+}
+
+export async function createReservationAction(formData: FormData): Promise<void> {
+  const bookCopyId = formData.get("bookCopyId");
+
+  if (typeof bookCopyId !== "string" || bookCopyId.trim().length === 0) {
+    return;
+  }
+
+  const copy = await prisma.bookCopy.findUnique({
+    where: {
+      id: bookCopyId,
+    },
+    include: {
+      book: true,
+      owner: true,
+      loans: {
+        where: {
+          status: "ACTIVE",
+        },
+        include: {
+          borrower: true,
+          owner: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!copy) {
+    return;
+  }
+
+  if (copy.status !== "BORROWED") {
+    return;
+  }
+
+  const activeLoan = copy.loans[0];
+
+  if (!activeLoan) {
+    return;
+  }
+
+  const reservationUser = await prisma.user.findUnique({
+    where: {
+      email: "marina@email.com",
+    },
+  });
+
+  if (!reservationUser) {
+    return;
+  }
+
+  const existingActiveReservation = await prisma.reservation.findFirst({
+    where: {
+      bookCopyId: copy.id,
+      userId: reservationUser.id,
+      status: "ACTIVE",
+    },
+  });
+
+  if (existingActiveReservation) {
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.reservation.create({
+      data: {
+        bookCopyId: copy.id,
+        userId: reservationUser.id,
+        status: "ACTIVE",
+        notes: `${reservationUser.name} entrou na fila de reserva para "${copy.book.title}".`,
+      },
+    });
+
+    await tx.loanHistory.create({
+      data: {
+        loanId: activeLoan.id,
+        bookCopyId: copy.id,
+        fromUserId: activeLoan.borrowerId,
+        toUserId: reservationUser.id,
+        action: "RESERVATION_CREATED",
+        notes: `${reservationUser.name} reservou "${copy.book.title}". Enquanto essa reserva estiver ativa, o empréstimo não poderá ser renovado.`,
+      },
+    });
+  });
+
+  revalidatePath("/books");
+  revalidatePath("/admin");
+  revalidatePath("/admin/loans");
+  revalidatePath("/admin/reservations");
+  revalidatePath(`/books/${copy.id}/history`);
 }

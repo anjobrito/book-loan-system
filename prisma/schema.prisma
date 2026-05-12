@@ -18,6 +18,7 @@ model User {
   borrowedLoans Loan[]         @relation("BorrowerLoans")
   ownedLoans    Loan[]         @relation("OwnerLoans")
   notifications Notification[]
+  reservations  Reservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,8 +52,9 @@ model BookCopy {
   book  Book @relation(fields: [bookId], references: [id])
   owner User @relation("BookOwner", fields: [ownerId], references: [id])
 
-  loans   Loan[]
-  history LoanHistory[]
+  loans        Loan[]
+  history      LoanHistory[]
+  reservations Reservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -109,4 +111,18 @@ model Notification {
   user User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
+}
+
+model Reservation {
+  id         String  @id @default(cuid())
+  bookCopyId String
+  userId     String
+  status     String  @default("ACTIVE")
+  notes      String?
+
+  bookCopy BookCopy @relation(fields: [bookCopyId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

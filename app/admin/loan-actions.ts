@@ -80,6 +80,7 @@ export async function returnLoanAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
   revalidatePath("/admin/loans");
   revalidatePath("/admin/notifications");
+  revalidatePath("/admin/reservations");
   revalidatePath(`/books/${loan.bookCopyId}/history`);
 }
 
@@ -100,6 +101,11 @@ export async function renewLoanAction(formData: FormData): Promise<void> {
       bookCopy: {
         include: {
           book: true,
+          reservations: {
+            where: {
+              status: "ACTIVE",
+            },
+          },
         },
       },
     },
@@ -110,6 +116,27 @@ export async function renewLoanAction(formData: FormData): Promise<void> {
   }
 
   if (loan.status !== "ACTIVE") {
+    return;
+  }
+
+  if (loan.bookCopy.reservations.length > 0) {
+    await prisma.loanHistory.create({
+      data: {
+        loanId: loan.id,
+        bookCopyId: loan.bookCopyId,
+        fromUserId: loan.ownerId,
+        toUserId: loan.borrowerId,
+        action: "LOAN_RENEWAL_BLOCKED",
+        notes: `Renovação bloqueada porque existe reserva ativa para "${loan.bookCopy.book.title}".`,
+      },
+    });
+
+    revalidatePath("/books");
+    revalidatePath("/admin");
+    revalidatePath("/admin/loans");
+    revalidatePath("/admin/reservations");
+    revalidatePath(`/books/${loan.bookCopyId}/history`);
+
     return;
   }
 
@@ -173,5 +200,6 @@ export async function renewLoanAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
   revalidatePath("/admin/loans");
   revalidatePath("/admin/notifications");
+  revalidatePath("/admin/reservations");
   revalidatePath(`/books/${loan.bookCopyId}/history`);
 }

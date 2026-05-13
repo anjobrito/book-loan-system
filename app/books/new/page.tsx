@@ -10,9 +10,9 @@ export default async function NewBookPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:py-10">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:py-10">
       <section className="mx-auto max-w-5xl">
-        <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl sm:p-8">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl sm:p-8">
           <div className="mb-8 text-center">
             <p className="mx-auto mb-4 w-fit rounded-full border border-amber-400/40 px-4 py-2 text-sm text-amber-300">
               Novo cadastro

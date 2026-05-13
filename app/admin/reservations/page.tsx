@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 import { cancelReservationAction } from "../reservation-actions";
 
 function formatDate(date: Date | null) {
@@ -29,6 +30,8 @@ function getReservationStatusLabel(status: string) {
 }
 
 export default async function AdminReservationsPage() {
+  await requireAdmin();
+
   const reservations = await prisma.reservation.findMany({
     include: {
       user: true,
@@ -57,7 +60,7 @@ export default async function AdminReservationsPage() {
   });
 
   return (
-    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <section className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

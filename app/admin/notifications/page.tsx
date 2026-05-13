@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 
 function formatDate(date: Date | null) {
   if (!date) {
@@ -32,6 +33,8 @@ function getNotificationStatusLabel(status: string) {
 }
 
 export default async function AdminNotificationsPage() {
+  await requireAdmin();
+
   const notifications = await prisma.notification.findMany({
     include: {
       user: true,
@@ -53,7 +56,7 @@ export default async function AdminNotificationsPage() {
   });
 
   return (
-    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <section className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -124,13 +127,13 @@ export default async function AdminNotificationsPage() {
                       <td className="px-4 py-4">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                           notification.status === "PENDING"
-  ? "bg-amber-500/20 text-amber-300"
-  : notification.status === "SENT"
-    ? "bg-green-500/20 text-green-300"
-    : notification.status === "CANCELLED"
-      ? "bg-slate-700 text-slate-300"
-      : "bg-red-500/20 text-red-300"
+                            notification.status === "PENDING"
+                              ? "bg-amber-500/20 text-amber-300"
+                              : notification.status === "SENT"
+                                ? "bg-green-500/20 text-green-300"
+                                : notification.status === "CANCELLED"
+                                  ? "bg-slate-700 text-slate-300"
+                                  : "bg-red-500/20 text-red-300"
                           }`}
                         >
                           {getNotificationStatusLabel(notification.status)}

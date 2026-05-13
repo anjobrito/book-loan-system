@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 import { renewLoanAction, returnLoanAction } from "../loan-actions";
 import { createReturnReminderAction } from "../notification-actions";
 
@@ -39,6 +40,8 @@ function getLoanStatusLabel(status: string) {
 }
 
 export default async function AdminLoansPage() {
+  await requireAdmin();
+
   const loans = await prisma.loan.findMany({
     include: {
       borrower: true,
@@ -74,7 +77,7 @@ export default async function AdminLoansPage() {
   defaultReminderDate.setDate(defaultReminderDate.getDate() + 1);
 
   return (
-    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <section className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -115,7 +118,7 @@ export default async function AdminLoansPage() {
               return (
                 <article
                   key={loan.id}
-                  className="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow"
+                  className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow sm:p-6"
                 >
                   <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1">
@@ -141,7 +144,7 @@ export default async function AdminLoansPage() {
                         )}
                       </div>
 
-                      <div className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-3">
+                      <div className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
                         <p>
                           <span className="text-slate-500">Código:</span>{" "}
                           {loan.bookCopy.code}

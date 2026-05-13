@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -114,10 +115,10 @@ model Notification {
 }
 
 model Reservation {
-  id         String  @id @default(cuid())
+  id         String @id @default(cuid())
   bookCopyId String
   userId     String
-  status     String  @default("ACTIVE")
+  status     String @default("ACTIVE")
   notes      String?
 
   bookCopy BookCopy @relation(fields: [bookCopyId], references: [id])

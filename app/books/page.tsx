@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { createReservationAction, requestLoanAction } from "./actions";
 
 function formatDate(date: Date) {
@@ -7,6 +8,8 @@ function formatDate(date: Date) {
 }
 
 export default async function BooksPage() {
+  const currentUser = await getCurrentUser();
+
   const copies = await prisma.bookCopy.findMany({
     include: {
       book: true,
@@ -41,7 +44,7 @@ export default async function BooksPage() {
   });
 
   return (
-    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-6 py-10 text-white">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <section className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -50,14 +53,30 @@ export default async function BooksPage() {
             <p className="mt-2 text-slate-300">
               Livros, comics e mangás cadastrados pelos donos.
             </p>
+
+            {!currentUser && (
+              <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+                Entre ou crie uma conta para solicitar empréstimos, reservar
+                exemplares e cadastrar livros.
+              </p>
+            )}
           </div>
 
-          <Link
-            href="/books/new"
-            className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
-          >
-            Cadastrar livro
-          </Link>
+          {currentUser ? (
+            <Link
+              href="/books/new"
+              className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
+            >
+              Cadastrar livro
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-xl bg-amber-400 px-5 py-3 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
+            >
+              Entrar para cadastrar
+            </Link>
+          )}
         </div>
 
         {copies.length === 0 ? (
@@ -65,14 +84,18 @@ export default async function BooksPage() {
             <p className="text-slate-300">Nenhum livro cadastrado ainda.</p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {copies.map((copy) => {
               const activeLoan = copy.loans[0];
               const isAvailable = copy.status === "AVAILABLE";
+              const isOwner = currentUser?.id === copy.ownerId;
+              const isBorrower = activeLoan?.borrower.id === currentUser?.id;
               const hasActiveReservations = copy.reservations.length > 0;
-              const marinaReservation = copy.reservations.find(
-                (reservation) => reservation.user.email === "marina@email.com"
-              );
+              const currentUserReservation = currentUser
+                ? copy.reservations.find(
+                    (reservation) => reservation.user.id === currentUser.id
+                  )
+                : null;
 
               return (
                 <article
@@ -124,9 +147,35 @@ export default async function BooksPage() {
                         <p>Primeiro da fila: {copy.reservations[0].user.name}</p>
                       </div>
                     )}
+
+                    {isOwner && (
+                      <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 p-3 text-slate-300">
+                        Este exemplar pertence a você.
+                      </div>
+                    )}
+
+                    {isBorrower && (
+                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
+                        Este exemplar está emprestado para você.
+                      </div>
+                    )}
                   </div>
 
-                  {isAvailable ? (
+                  {!currentUser ? (
+                    <Link
+                      href="/login"
+                      className="mt-5 block w-full rounded-xl bg-amber-400 px-4 py-2 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
+                    >
+                      Entrar para solicitar
+                    </Link>
+                  ) : isOwner ? (
+                    <button
+                      disabled
+                      className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
+                    >
+                      Seu exemplar
+                    </button>
+                  ) : isAvailable ? (
                     <form action={requestLoanAction}>
                       <input type="hidden" name="bookCopyId" value={copy.id} />
 
@@ -137,7 +186,14 @@ export default async function BooksPage() {
                         Solicitar empréstimo
                       </button>
                     </form>
-                  ) : marinaReservation ? (
+                  ) : isBorrower ? (
+                    <button
+                      disabled
+                      className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
+                    >
+                      Está com você
+                    </button>
+                  ) : currentUserReservation ? (
                     <button
                       disabled
                       className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"

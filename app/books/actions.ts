@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 export type CreateBookState = {
   success: boolean;
@@ -57,6 +58,15 @@ export async function createBookAction(
   formData: FormData
 ): Promise<CreateBookState> {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return {
+        success: false,
+        message: "Você precisa estar logado para cadastrar livros.",
+      };
+    }
+
     const title = getRequiredString(formData, "title");
     const type = getRequiredString(formData, "type");
     const code = getRequiredString(formData, "code");
@@ -68,20 +78,6 @@ export async function createBookAction(
     const publisher = getOptionalString(formData, "publisher");
     const author = getOptionalString(formData, "author");
     const publicationYear = getOptionalNumber(formData, "publicationYear");
-
-    const owner = await prisma.user.findUnique({
-      where: {
-        email: "anjobrito@gmail.com",
-      },
-    });
-
-    if (!owner) {
-      return {
-        success: false,
-        message:
-          "Dono padrão não encontrado. Rode npm run seed antes de cadastrar livros.",
-      };
-    }
 
     const existingCopy = await prisma.bookCopy.findUnique({
       where: {
@@ -108,7 +104,7 @@ export async function createBookAction(
         genre,
         copies: {
           create: {
-            ownerId: owner.id,
+            ownerId: currentUser.id,
             code,
             condition,
             status: "AVAILABLE",
@@ -118,6 +114,7 @@ export async function createBookAction(
     });
 
     revalidatePath("/books");
+    revalidatePath("/admin");
 
     return {
       success: true,
@@ -134,6 +131,12 @@ export async function createBookAction(
 }
 
 export async function requestLoanAction(formData: FormData): Promise<void> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return;
+  }
+
   const bookCopyId = formData.get("bookCopyId");
 
   if (typeof bookCopyId !== "string" || bookCopyId.trim().length === 0) {
@@ -158,18 +161,7 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
     return;
   }
 
-  const borrowerEmail =
-    copy.owner.email === "anjobrito@gmail.com"
-      ? "carlos@email.com"
-      : "anjobrito@gmail.com";
-
-  const borrower = await prisma.user.findUnique({
-    where: {
-      email: borrowerEmail,
-    },
-  });
-
-  if (!borrower) {
+  if (copy.ownerId === currentUser.id) {
     return;
   }
 
@@ -183,7 +175,7 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
     const loan = await tx.loan.create({
       data: {
         bookCopyId: copy.id,
-        borrowerId: borrower.id,
+        borrowerId: currentUser.id,
         ownerId: copy.ownerId,
         dueDate,
         status: "ACTIVE",
@@ -204,19 +196,19 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
         loanId: loan.id,
         bookCopyId: copy.id,
         fromUserId: copy.ownerId,
-        toUserId: borrower.id,
+        toUserId: currentUser.id,
         action: "LOAN_CREATED",
-        notes: `${borrower.name} pegou "${copy.book.title}" emprestado de ${copy.owner.name}.`,
+        notes: `${currentUser.name} pegou "${copy.book.title}" emprestado de ${copy.owner.name}.`,
       },
     });
 
     await tx.notification.create({
       data: {
         loanId: loan.id,
-        userId: borrower.id,
+        userId: currentUser.id,
         type: "RETURN_REMINDER",
         subject: `Lembrete de devolução: ${copy.book.title}`,
-        message: `Olá ${borrower.name}, este é um lembrete para devolver "${copy.book.title}" até ${dueDate.toLocaleDateString(
+        message: `Olá ${currentUser.name}, este é um lembrete para devolver "${copy.book.title}" até ${dueDate.toLocaleDateString(
           "pt-BR"
         )}. Caso precise renovar o empréstimo, solicite a renovação antes do vencimento.`,
         scheduledFor: reminderDate,
@@ -229,9 +221,9 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
         loanId: loan.id,
         bookCopyId: copy.id,
         fromUserId: copy.ownerId,
-        toUserId: borrower.id,
+        toUserId: currentUser.id,
         action: "REMINDER_SCHEDULED",
-        notes: `Lembrete automático agendado para ${borrower.name}.`,
+        notes: `Lembrete automático agendado para ${currentUser.name}.`,
       },
     });
   });
@@ -243,6 +235,12 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
 }
 
 export async function createReservationAction(formData: FormData): Promise<void> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return;
+  }
+
   const bookCopyId = formData.get("bookCopyId");
 
   if (typeof bookCopyId !== "string" || bookCopyId.trim().length === 0) {
@@ -280,26 +278,24 @@ export async function createReservationAction(formData: FormData): Promise<void>
     return;
   }
 
+  if (copy.ownerId === currentUser.id) {
+    return;
+  }
+
   const activeLoan = copy.loans[0];
 
   if (!activeLoan) {
     return;
   }
 
-  const reservationUser = await prisma.user.findUnique({
-    where: {
-      email: "marina@email.com",
-    },
-  });
-
-  if (!reservationUser) {
+  if (activeLoan.borrowerId === currentUser.id) {
     return;
   }
 
   const existingActiveReservation = await prisma.reservation.findFirst({
     where: {
       bookCopyId: copy.id,
-      userId: reservationUser.id,
+      userId: currentUser.id,
       status: "ACTIVE",
     },
   });
@@ -312,9 +308,9 @@ export async function createReservationAction(formData: FormData): Promise<void>
     await tx.reservation.create({
       data: {
         bookCopyId: copy.id,
-        userId: reservationUser.id,
+        userId: currentUser.id,
         status: "ACTIVE",
-        notes: `${reservationUser.name} entrou na fila de reserva para "${copy.book.title}".`,
+        notes: `${currentUser.name} entrou na fila de reserva para "${copy.book.title}".`,
       },
     });
 
@@ -323,9 +319,9 @@ export async function createReservationAction(formData: FormData): Promise<void>
         loanId: activeLoan.id,
         bookCopyId: copy.id,
         fromUserId: activeLoan.borrowerId,
-        toUserId: reservationUser.id,
+        toUserId: currentUser.id,
         action: "RESERVATION_CREATED",
-        notes: `${reservationUser.name} reservou "${copy.book.title}". Enquanto essa reserva estiver ativa, o empréstimo não poderá ser renovado.`,
+        notes: `${currentUser.name} reservou "${copy.book.title}". Enquanto essa reserva estiver ativa, o empréstimo não poderá ser renovado.`,
       },
     });
   });

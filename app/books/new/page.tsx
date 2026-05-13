@@ -1,11 +1,18 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import NewBookForm from "./NewBookForm";
 
-export default function NewBookPage() {
-  return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
-      <section className="mx-auto max-w-5xl">
+export default async function NewBookPage() {
+  const currentUser = await getCurrentUser();
 
-        <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl">
+  if (!currentUser) {
+    redirect("/login");
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:py-10">
+      <section className="mx-auto max-w-5xl">
+        <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl sm:p-8">
           <div className="mb-8 text-center">
             <p className="mx-auto mb-4 w-fit rounded-full border border-amber-400/40 px-4 py-2 text-sm text-amber-300">
               Novo cadastro
@@ -21,8 +28,7 @@ export default function NewBookPage() {
             </p>
 
             <p className="mt-2 text-sm text-slate-400">
-              Nesta etapa inicial, os cadastros serão vinculados ao dono padrão:
-              André.
+              Este cadastro será vinculado ao usuário logado: {currentUser.name}.
             </p>
           </div>
 

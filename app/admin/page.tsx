@@ -48,7 +48,7 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <section className="mx-auto max-w-6xl">
         <h1 className="text-3xl font-bold">Painel Administrativo</h1>
 

@@ -10,7 +10,7 @@ export default async function NewBookPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:py-10">
+    <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:py-10">
       <section className="mx-auto max-w-5xl">
         <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl sm:p-8">
           <div className="mb-8 text-center">

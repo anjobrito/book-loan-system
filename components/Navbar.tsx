@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 
-export default function Navbar() {
+export default async function Navbar() {
+  const currentUser = await getCurrentUser();
+
   return (
     <header className="border-bottom border-secondary bg-dark">
       <nav className="navbar navbar-dark">
@@ -61,6 +64,25 @@ export default function Navbar() {
             >
               Admin
             </Link>
+
+            {currentUser ? (
+              <>
+                <span className="text-light small">
+                  {currentUser.name} ({currentUser.role})
+                </span>
+
+                <Link
+                  href="/logout"
+                  className="btn btn-outline-warning btn-sm fw-bold"
+                >
+                  Sair
+                </Link>
+              </>
+            ) : (
+              <Link href="/login" className="btn btn-warning btn-sm fw-bold">
+                Login
+              </Link>
+            )}
           </div>
         </div>
       </nav>

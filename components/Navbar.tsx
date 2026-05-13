@@ -7,7 +7,7 @@ export default async function Navbar() {
   return (
     <header className="border-bottom border-secondary bg-dark">
       <nav className="navbar navbar-dark">
-        <div className="container d-flex align-items-center justify-content-between">
+        <div className="container d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 py-2">
           <Link
             href="/"
             className="navbar-brand mb-0 fw-bold text-warning text-decoration-none"
@@ -15,17 +15,17 @@ export default async function Navbar() {
             Book Loan System
           </Link>
 
-          <div className="d-flex align-items-center gap-3">
+          <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3">
             <Link
               href="/"
-              className="text-light text-decoration-none fw-semibold"
+              className="text-light text-decoration-none fw-semibold small"
             >
               Início
             </Link>
 
             <Link
               href="/books"
-              className="text-light text-decoration-none fw-semibold"
+              className="text-light text-decoration-none fw-semibold small"
             >
               Catálogo
             </Link>
@@ -39,21 +39,21 @@ export default async function Navbar() {
 
             <Link
               href="/admin/loans"
-              className="text-light text-decoration-none fw-semibold"
+              className="text-light text-decoration-none fw-semibold small"
             >
               Empréstimos
             </Link>
 
             <Link
               href="/admin/reservations"
-              className="text-light text-decoration-none fw-semibold"
+              className="text-light text-decoration-none fw-semibold small"
             >
               Reservas
             </Link>
 
             <Link
               href="/admin/notifications"
-              className="text-light text-decoration-none fw-semibold"
+              className="text-light text-decoration-none fw-semibold small"
             >
               Notificações
             </Link>
@@ -82,7 +82,7 @@ export default async function Navbar() {
               <>
                 <Link
                   href="/register"
-                  className="text-light text-decoration-none fw-semibold"
+                  className="text-light text-decoration-none fw-semibold small"
                 >
                   Criar conta
                 </Link>

@@ -71,17 +71,26 @@ export default async function Navbar() {
                   {currentUser.name} ({currentUser.role})
                 </span>
 
-                <Link
+                <a
                   href="/logout"
                   className="btn btn-outline-warning btn-sm fw-bold"
                 >
                   Sair
-                </Link>
+                </a>
               </>
             ) : (
-              <Link href="/login" className="btn btn-warning btn-sm fw-bold">
-                Login
-              </Link>
+              <>
+                <Link
+                  href="/register"
+                  className="text-light text-decoration-none fw-semibold"
+                >
+                  Criar conta
+                </Link>
+
+                <Link href="/login" className="btn btn-warning btn-sm fw-bold">
+                  Login
+                </Link>
+              </>
             )}
           </div>
         </div>

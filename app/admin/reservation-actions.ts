@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 
 export async function cancelReservationAction(
   formData: FormData
 ): Promise<void> {
+  await requireAdmin();
+
   const reservationId = formData.get("reservationId");
 
   if (

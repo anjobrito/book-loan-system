@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 
 function getRequiredString(formData: FormData, field: string): string {
   const value = formData.get(field);
@@ -17,15 +18,11 @@ export async function createReturnReminderAction(
   formData: FormData
 ): Promise<void> {
   try {
-    console.log("createReturnReminderAction chamada");
+    await requireAdmin();
 
     const loanId = getRequiredString(formData, "loanId");
     const scheduledForValue = getRequiredString(formData, "scheduledFor");
     const message = getRequiredString(formData, "message");
-
-    console.log("loanId recebido:", loanId);
-    console.log("scheduledFor recebido:", scheduledForValue);
-    console.log("message recebido:", message);
 
     const loan = await prisma.loan.findUnique({
       where: {
@@ -43,19 +40,16 @@ export async function createReturnReminderAction(
     });
 
     if (!loan) {
-      console.log("Empréstimo não encontrado.");
       return;
     }
 
     if (loan.status !== "ACTIVE") {
-      console.log("Empréstimo não está ativo:", loan.status);
       return;
     }
 
     const scheduledFor = new Date(scheduledForValue);
 
     if (Number.isNaN(scheduledFor.getTime())) {
-      console.log("Data inválida:", scheduledForValue);
       return;
     }
 
@@ -83,8 +77,6 @@ export async function createReturnReminderAction(
         },
       });
     });
-
-    console.log("Notificação criada com sucesso.");
 
     revalidatePath("/admin/loans");
     revalidatePath("/admin/notifications");

@@ -2,8 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin";
 
 export async function returnLoanAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+
   const loanId = formData.get("loanId");
 
   if (typeof loanId !== "string" || loanId.trim().length === 0) {
@@ -174,6 +177,8 @@ export async function returnLoanAction(formData: FormData): Promise<void> {
 }
 
 export async function renewLoanAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+
   const loanId = formData.get("loanId");
 
   if (typeof loanId !== "string" || loanId.trim().length === 0) {

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 export default async function Navbar() {
   const currentUser = await getCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
 
   return (
     <header className="border-bottom border-secondary bg-dark">
@@ -30,40 +31,46 @@ export default async function Navbar() {
               Catálogo
             </Link>
 
-            <Link
-              href="/books/new"
-              className="btn btn-warning btn-sm fw-bold text-dark"
-            >
-              Cadastrar livro
-            </Link>
+            {currentUser && (
+              <Link
+                href="/books/new"
+                className="btn btn-warning btn-sm fw-bold text-dark"
+              >
+                Cadastrar livro
+              </Link>
+            )}
 
-            <Link
-              href="/admin/loans"
-              className="text-light text-decoration-none fw-semibold small"
-            >
-              Empréstimos
-            </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  href="/admin/loans"
+                  className="text-light text-decoration-none fw-semibold small"
+                >
+                  Empréstimos
+                </Link>
 
-            <Link
-              href="/admin/reservations"
-              className="text-light text-decoration-none fw-semibold small"
-            >
-              Reservas
-            </Link>
+                <Link
+                  href="/admin/reservations"
+                  className="text-light text-decoration-none fw-semibold small"
+                >
+                  Reservas
+                </Link>
 
-            <Link
-              href="/admin/notifications"
-              className="text-light text-decoration-none fw-semibold small"
-            >
-              Notificações
-            </Link>
+                <Link
+                  href="/admin/notifications"
+                  className="text-light text-decoration-none fw-semibold small"
+                >
+                  Notificações
+                </Link>
 
-            <Link
-              href="/admin"
-              className="btn btn-outline-light btn-sm fw-bold"
-            >
-              Admin
-            </Link>
+                <Link
+                  href="/admin"
+                  className="btn btn-outline-light btn-sm fw-bold"
+                >
+                  Admin
+                </Link>
+              </>
+            )}
 
             {currentUser ? (
               <>

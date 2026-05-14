@@ -39,7 +39,10 @@ function FormField({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="mb-2 block text-sm font-medium text-slate-200">
+      <label
+        htmlFor={name}
+        className="mb-2 block text-sm font-medium text-slate-200"
+      >
         {label} {required && <span className="text-amber-300">*</span>}
       </label>
 
@@ -89,7 +92,10 @@ export default function NewBookForm() {
         />
 
         <div>
-          <label htmlFor="type" className="mb-2 block text-sm font-medium text-slate-200">
+          <label
+            htmlFor="type"
+            className="mb-2 block text-sm font-medium text-slate-200"
+          >
             Tipo <span className="text-amber-300">*</span>
           </label>
 
@@ -147,6 +153,15 @@ export default function NewBookForm() {
 
         <div className="md:col-span-2">
           <FormField
+            label="URL da capa"
+            name="imageUrl"
+            type="url"
+            placeholder="Ex: https://exemplo.com/capa.jpg"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <FormField
             label="Estado do exemplar"
             name="condition"
             required
@@ -155,7 +170,10 @@ export default function NewBookForm() {
         </div>
 
         <div className="md:col-span-2">
-          <label htmlFor="synopsis" className="mb-2 block text-sm font-medium text-slate-200">
+          <label
+            htmlFor="synopsis"
+            className="mb-2 block text-sm font-medium text-slate-200"
+          >
             Sinopse
           </label>
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { calculateLoanDueDate } from "@/lib/exchange-dates";
 
 export type CreateBookState = {
   success: boolean;
@@ -167,8 +168,7 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
     return;
   }
 
-  const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + 7);
+  const dueDate = await calculateLoanDueDate();
 
   const reminderDate = new Date(dueDate);
   reminderDate.setDate(reminderDate.getDate() - 1);
@@ -200,7 +200,7 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
         fromUserId: copy.ownerId,
         toUserId: currentUser.id,
         action: "LOAN_CREATED",
-        notes: `${currentUser.name} pegou "${copy.book.title}" emprestado de ${copy.owner.name}.`,
+        notes: `${currentUser.name} pegou "${copy.book.title}" emprestado de ${copy.owner.name}. Devolução prevista para ${dueDate.toLocaleDateString("pt-BR")}.`,
       },
     });
 
@@ -212,7 +212,7 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
         subject: `Lembrete de devolução: ${copy.book.title}`,
         message: `Olá ${currentUser.name}, este é um lembrete para devolver "${copy.book.title}" até ${dueDate.toLocaleDateString(
           "pt-BR"
-        )}. Caso precise renovar o empréstimo, solicite a renovação antes do vencimento.`,
+        )}. A data foi calculada com base nas datas de troca cadastradas pela administração. Caso precise renovar o empréstimo, solicite a renovação antes do vencimento.`,
         scheduledFor: reminderDate,
         status: "PENDING",
       },

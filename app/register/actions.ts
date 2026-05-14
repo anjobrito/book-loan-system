@@ -1,9 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { randomBytes } from "crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { AUTH_COOKIE_NAME } from "@/lib/auth";
 import { sendRegistrationConfirmationEmail } from "@/lib/email";
 import { hashPassword } from "@/lib/password-utils";
 
@@ -85,12 +84,23 @@ export async function registerAction(
     };
   }
 
+  const verificationCode = randomBytes(32).toString("hex");
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 24);
+
   const user = await prisma.user.create({
     data: {
       name: trimmedName,
       email: normalizedEmail,
       password: hashPassword(trimmedPassword),
       role: "USER",
+      accessStatus: "PENDING",
+      emailVerifications: {
+        create: {
+          code: verificationCode,
+          expiresAt,
+        },
+      },
     },
   });
 
@@ -98,19 +108,11 @@ export async function registerAction(
     await sendRegistrationConfirmationEmail({
       to: user.email,
       userName: user.name,
+      code: verificationCode,
     });
   } catch (error) {
     console.error("Erro ao enviar e-mail de confirmação de cadastro:", error);
   }
 
-  const cookieStore = await cookies();
-
-  cookieStore.set(AUTH_COOKIE_NAME, user.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  redirect("/books");
+  redirect("/login?registered=1");
 }

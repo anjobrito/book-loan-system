@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME } from "@/lib/auth";
-import { hashPassword } from "@/lib/password";
+import { sendRegistrationConfirmationEmail } from "@/lib/email";
+import { hashPassword } from "@/lib/password-utils";
 
 export type RegisterState = {
   success: boolean;
@@ -51,6 +52,7 @@ export async function registerAction(
     };
   }
 
+  const trimmedName = name.trim();
   const trimmedPassword = password.trim();
   const trimmedConfirmPassword = confirmPassword.trim();
 
@@ -85,12 +87,21 @@ export async function registerAction(
 
   const user = await prisma.user.create({
     data: {
-      name: name.trim(),
+      name: trimmedName,
       email: normalizedEmail,
       password: hashPassword(trimmedPassword),
       role: "USER",
     },
   });
+
+  try {
+    await sendRegistrationConfirmationEmail({
+      to: user.email,
+      userName: user.name,
+    });
+  } catch (error) {
+    console.error("Erro ao enviar e-mail de confirmação de cadastro:", error);
+  }
 
   const cookieStore = await cookies();
 

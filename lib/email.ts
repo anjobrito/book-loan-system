@@ -3,7 +3,6 @@ import { Resend } from "resend";
 const resendApiKey = process.env.RESEND_API_KEY;
 const fromEmail =
   process.env.RESEND_FROM_EMAIL ?? "Book Loan System <onboarding@resend.dev>";
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export type SendReturnReminderEmailInput = {
   to: string;
@@ -14,10 +13,9 @@ export type SendReturnReminderEmailInput = {
   message: string;
 };
 
-export type SendAccountVerificationEmailInput = {
+export type SendRegistrationConfirmationEmailInput = {
   to: string;
   userName: string;
-  code: string;
 };
 
 function getResendClient() {
@@ -28,37 +26,24 @@ function getResendClient() {
   return new Resend(resendApiKey);
 }
 
-export async function sendAccountVerificationEmail({
+export async function sendRegistrationConfirmationEmail({
   to,
   userName,
-  code,
-}: SendAccountVerificationEmailInput) {
+}: SendRegistrationConfirmationEmailInput) {
   const resend = getResendClient();
-  const verificationUrl = `${appUrl}/verify-email?code=${code}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-      <h1 style="color: #111827;">Confirme seu cadastro</h1>
+      <h1>Cadastro recebido</h1>
 
       <p>Olá, <strong>${userName}</strong>.</p>
 
       <p>
-        Seu cadastro na Biblioteca Comunitária da empresa foi criado com sucesso.
-        Para liberar seu acesso, confirme seu e-mail clicando no botão abaixo.
-      </p>
-
-      <p style="margin: 28px 0;">
-        <a href="${verificationUrl}" style="display: inline-block; padding: 12px 18px; border-radius: 10px; background: #fbbf24; color: #0f172a; font-weight: bold; text-decoration: none;">
-          Confirmar cadastro
-        </a>
+        Seu cadastro na Biblioteca Comunitária da empresa foi recebido com sucesso.
       </p>
 
       <p>
-        Se o botão não funcionar, copie e cole este endereço no navegador:
-      </p>
-
-      <p style="word-break: break-all; color: #374151;">
-        ${verificationUrl}
+        Agora você já pode acessar o sistema usando seu e-mail e senha cadastrados.
       </p>
 
       <p style="margin-top: 32px; color: #6b7280;">
@@ -70,7 +55,7 @@ export async function sendAccountVerificationEmail({
   const { data, error } = await resend.emails.send({
     from: fromEmail,
     to: [to],
-    subject: "Confirme seu cadastro na Biblioteca Comunitária",
+    subject: "Cadastro recebido na Biblioteca Comunitária",
     html,
   });
 

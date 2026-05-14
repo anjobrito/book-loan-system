@@ -43,6 +43,20 @@ export default async function Navbar() {
             {isAdmin && (
               <>
                 <Link
+                  href="/admin/users"
+                  className="text-light text-decoration-none fw-semibold small"
+                >
+                  Usuários
+                </Link>
+
+                <Link
+                  href="/admin/exchange-dates"
+                  className="text-light text-decoration-none fw-semibold small"
+                >
+                  Datas de troca
+                </Link>
+
+                <Link
                   href="/admin/loans"
                   className="text-light text-decoration-none fw-semibold small"
                 >

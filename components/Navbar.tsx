@@ -6,7 +6,7 @@ export default async function Navbar() {
   const isAdmin = currentUser?.role === "ADMIN";
 
   return (
-    <header className="border-bottom border-secondary bg-dark">
+    <header className="sticky-top border-bottom border-secondary bg-dark shadow-sm">
       <nav className="navbar navbar-dark">
         <div className="container d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 py-2">
           <Link

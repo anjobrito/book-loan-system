@@ -10,6 +10,8 @@ export type CreateBookState = {
   message: string;
 };
 
+const MAX_ACTIVE_LOANS_PER_USER = 2;
+
 function getRequiredString(formData: FormData, field: string): string {
   const value = formData.get(field);
 
@@ -140,6 +142,17 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
     return;
   }
 
+  const activeLoansCount = await prisma.loan.count({
+    where: {
+      borrowerId: currentUser.id,
+      status: "ACTIVE",
+    },
+  });
+
+  if (activeLoansCount >= MAX_ACTIVE_LOANS_PER_USER) {
+    return;
+  }
+
   const bookCopyId = formData.get("bookCopyId");
 
   if (typeof bookCopyId !== "string" || bookCopyId.trim().length === 0) {
@@ -156,15 +169,7 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
     },
   });
 
-  if (!copy) {
-    return;
-  }
-
-  if (copy.status !== "AVAILABLE") {
-    return;
-  }
-
-  if (copy.ownerId === currentUser.id) {
+  if (!copy || copy.status !== "AVAILABLE" || copy.ownerId === currentUser.id) {
     return;
   }
 
@@ -272,25 +277,13 @@ export async function createReservationAction(formData: FormData): Promise<void>
     },
   });
 
-  if (!copy) {
-    return;
-  }
-
-  if (copy.status !== "BORROWED") {
-    return;
-  }
-
-  if (copy.ownerId === currentUser.id) {
+  if (!copy || copy.status !== "BORROWED" || copy.ownerId === currentUser.id) {
     return;
   }
 
   const activeLoan = copy.loans[0];
 
-  if (!activeLoan) {
-    return;
-  }
-
-  if (activeLoan.borrowerId === currentUser.id) {
+  if (!activeLoan || activeLoan.borrowerId === currentUser.id) {
     return;
   }
 

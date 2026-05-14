@@ -15,6 +15,7 @@ function formatDate(date: Date) {
 
 export default async function BooksPage() {
   const currentUser = await getCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
 
   const copies = await prisma.bookCopy.findMany({
     include: {
@@ -72,6 +73,7 @@ export default async function BooksPage() {
               const activeLoan = copy.loans[0];
               const isAvailable = copy.status === "AVAILABLE";
               const isOwner = currentUser?.id === copy.ownerId;
+              const canEdit = isAdmin || isOwner;
               const isBorrower = activeLoan?.borrower.id === currentUser?.id;
               const hasActiveReservations = copy.reservations.length > 0;
               const currentUserReservation = currentUser
@@ -148,7 +150,16 @@ export default async function BooksPage() {
                         </div>
                       </details>
 
-                      <div className="mt-5">
+                      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {canEdit && (
+                          <Link
+                            href={`/books/${copy.id}/edit`}
+                            className="block w-full rounded-xl border border-slate-700 px-4 py-2 text-center font-semibold text-white no-underline hover:bg-slate-800 sm:w-fit"
+                          >
+                            Editar cadastro
+                          </Link>
+                        )}
+
                         {!currentUser ? (
                           <Link href="/login" className="block w-full rounded-xl bg-amber-400 px-4 py-2 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300 sm:w-fit">
                             Entrar para solicitar

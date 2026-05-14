@@ -3,7 +3,6 @@ import { Resend } from "resend";
 const resendApiKey = process.env.RESEND_API_KEY;
 const fromEmail =
   process.env.RESEND_FROM_EMAIL ?? "Biblioteca Comunitária <onboarding@resend.dev>";
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export type SendReturnReminderEmailInput = {
   to: string;
@@ -20,12 +19,40 @@ export type SendRegistrationConfirmationEmailInput = {
   code: string;
 };
 
+function getAppUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/$/, "");
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
+  }
+
+  return "http://localhost:3000";
+}
+
 function getResendClient() {
   if (!resendApiKey) {
-    throw new Error("RESEND_API_KEY não configurada no .env.");
+    throw new Error("RESEND_API_KEY não configurada no ambiente.");
   }
 
   return new Resend(resendApiKey);
+}
+
+function getEmailDiagnostics() {
+  return {
+    hasResendApiKey: Boolean(resendApiKey),
+    fromEmail,
+    appUrl: getAppUrl(),
+  };
+}
+
+export function getEmailConfigurationDiagnostics() {
+  return getEmailDiagnostics();
 }
 
 export async function sendRegistrationConfirmationEmail({
@@ -34,7 +61,9 @@ export async function sendRegistrationConfirmationEmail({
   code,
 }: SendRegistrationConfirmationEmailInput) {
   const resend = getResendClient();
-  const confirmationUrl = `${appUrl}/verify-email?code=${code}`;
+  const confirmationUrl = `${getAppUrl()}/verify-email?code=${code}`;
+
+  const text = `Olá, ${userName}.\n\nSeu cadastro na Biblioteca Comunitária foi recebido.\n\nPara liberar seu acesso, confirme seu e-mail acessando:\n${confirmationUrl}\n\nSe não conseguir confirmar pelo link, fale com um administrador para liberar seu cadastro.`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
@@ -52,7 +81,7 @@ export async function sendRegistrationConfirmationEmail({
       </p>
 
       <p style="margin: 28px 0;">
-        <a href="${confirmationUrl}" style="display: inline-block; padding: 12px 18px; border-radius: 10px; background: #fbbf24; color: #0f172a; font-weight: bold; text-decoration: none;">
+        <a href="${confirmationUrl}" style="display: inline-block; padding: 12px 18px; border-radius: 10px; background: #dc2626; color: #ffffff; font-weight: bold; text-decoration: none;">
           Confirmar cadastro
         </a>
       </p>
@@ -74,11 +103,24 @@ export async function sendRegistrationConfirmationEmail({
     to: [to],
     subject: "Confirme seu cadastro na Biblioteca Comunitária",
     html,
+    text,
   });
 
   if (error) {
+    console.error("Resend registration email error:", {
+      error,
+      diagnostics: getEmailDiagnostics(),
+      to,
+    });
+
     throw new Error(`Erro ao enviar e-mail: ${JSON.stringify(error)}`);
   }
+
+  console.info("Resend registration email sent:", {
+    id: data?.id,
+    to,
+    diagnostics: getEmailDiagnostics(),
+  });
 
   return data;
 }
@@ -94,6 +136,7 @@ export async function sendReturnReminderEmail({
   const resend = getResendClient();
 
   const dueDateFormatted = new Intl.DateTimeFormat("pt-BR").format(dueDate);
+  const text = `Olá, ${userName}.\n\n${message}\n\nLivro: ${bookTitle}\nCódigo do exemplar: ${bookCode}\nData prevista de devolução: ${dueDateFormatted}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
@@ -125,11 +168,24 @@ export async function sendReturnReminderEmail({
     to: [to],
     subject: `Lembrete de devolução: ${bookTitle}`,
     html,
+    text,
   });
 
   if (error) {
+    console.error("Resend return reminder email error:", {
+      error,
+      diagnostics: getEmailDiagnostics(),
+      to,
+    });
+
     throw new Error(`Erro ao enviar e-mail: ${JSON.stringify(error)}`);
   }
+
+  console.info("Resend return reminder email sent:", {
+    id: data?.id,
+    to,
+    diagnostics: getEmailDiagnostics(),
+  });
 
   return data;
 }

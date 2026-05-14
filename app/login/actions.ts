@@ -53,6 +53,14 @@ export async function loginAction(
       };
     }
 
+    if (user.accessStatus !== "APPROVED") {
+      return {
+        success: false,
+        message:
+          "Seu cadastro ainda não foi liberado. Confirme seu e-mail ou fale com um administrador.",
+      };
+    }
+
     if (!isPasswordHash(user.password)) {
       await prisma.user.update({
         where: {

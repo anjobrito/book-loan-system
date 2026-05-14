@@ -114,5 +114,5 @@ export async function registerAction(
     console.error("Erro ao enviar e-mail de confirmação de cadastro:", error);
   }
 
-  redirect("/login?registered=1");
+  redirect("/login?registered=1&checkEmail=1");
 }

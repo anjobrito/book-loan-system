@@ -84,7 +84,7 @@ export default async function BooksPage() {
             <p className="text-slate-300">Nenhum livro cadastrado ainda.</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4">
             {copies.map((copy) => {
               const activeLoan = copy.loans[0];
               const isAvailable = copy.status === "AVAILABLE";

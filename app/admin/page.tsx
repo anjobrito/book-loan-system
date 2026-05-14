@@ -8,6 +8,7 @@ export default async function AdminPage() {
   const now = new Date();
 
   const [
+    usersCount,
     activeLoansCount,
     booksCount,
     bookCopiesCount,
@@ -15,6 +16,8 @@ export default async function AdminPage() {
     pendingNotificationsCount,
     lateLoansCount,
   ] = await Promise.all([
+    prisma.user.count(),
+
     prisma.loan.count({
       where: {
         status: "ACTIVE",
@@ -53,11 +56,18 @@ export default async function AdminPage() {
         <h1 className="text-3xl font-bold">Painel Administrativo</h1>
 
         <p className="mt-2 text-slate-300">
-          Aqui o administrador poderá controlar empréstimos, devoluções,
-          reservas e notificações por e-mail.
+          Aqui o administrador poderá controlar usuários, empréstimos,
+          devoluções, reservas e notificações por e-mail.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <p className="text-sm text-slate-400">Usuários cadastrados</p>
+            <strong className="mt-2 block text-4xl text-amber-300">
+              {usersCount}
+            </strong>
+          </div>
+
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
             <p className="text-sm text-slate-400">Empréstimos ativos</p>
             <strong className="mt-2 block text-4xl text-amber-300">
@@ -87,13 +97,6 @@ export default async function AdminPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-            <p className="text-sm text-slate-400">Notificações pendentes</p>
-            <strong className="mt-2 block text-4xl text-amber-300">
-              {pendingNotificationsCount}
-            </strong>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
             <p className="text-sm text-slate-400">Atrasados</p>
             <strong className="mt-2 block text-4xl text-red-400">
               {lateLoansCount}
@@ -109,7 +112,14 @@ export default async function AdminPage() {
             sistema.
           </p>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <Link
+              href="/admin/users"
+              className="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-center font-semibold text-white no-underline hover:bg-slate-800"
+            >
+              Usuários
+            </Link>
+
             <Link
               href="/admin/loans"
               className="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-center font-semibold text-white no-underline hover:bg-slate-800"

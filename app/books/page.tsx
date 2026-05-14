@@ -100,118 +100,145 @@ export default async function BooksPage() {
               return (
                 <article
                   key={copy.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow"
+                  className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-amber-300">
-                      {copy.book.type}
+                  {copy.book.imageUrl ? (
+                    <div className="h-64 w-full overflow-hidden bg-slate-950">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={copy.book.imageUrl}
+                        alt={`Capa de ${copy.book.title}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-64 w-full items-center justify-center bg-slate-950">
+                      <div className="rounded-2xl border border-slate-800 px-6 py-4 text-center">
+                        <p className="text-sm font-semibold text-slate-400">
+                          Sem capa
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-600">
+                          Imagem não cadastrada
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-amber-300">
+                        {copy.book.type}
+                      </p>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          isAvailable
+                            ? "bg-green-500/20 text-green-300"
+                            : "bg-red-500/20 text-red-300"
+                        }`}
+                      >
+                        {isAvailable ? "Disponível" : "Emprestado"}
+                      </span>
+                    </div>
+
+                    <h2 className="mt-3 text-xl font-semibold">
+                      {copy.book.title}
+                    </h2>
+
+                    <p className="mt-3 text-sm text-slate-300">
+                      {copy.book.synopsis ?? "Sem sinopse cadastrada."}
                     </p>
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        isAvailable
-                          ? "bg-green-500/20 text-green-300"
-                          : "bg-red-500/20 text-red-300"
-                      }`}
-                    >
-                      {isAvailable ? "Disponível" : "Emprestado"}
-                    </span>
-                  </div>
+                    <div className="mt-4 space-y-2 text-sm text-slate-300">
+                      <p>Dono: {copy.owner.name}</p>
+                      <p>Autor: {copy.book.author ?? "Não informado"}</p>
+                      <p>Gênero: {copy.book.genre}</p>
+                      <p>Edição: {copy.book.edition ?? "Não informada"}</p>
+                      <p>Código do exemplar: {copy.code}</p>
+                      <p>Estado: {copy.condition ?? "Não informado"}</p>
 
-                  <h2 className="mt-3 text-xl font-semibold">
-                    {copy.book.title}
-                  </h2>
+                      {activeLoan && (
+                        <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-200">
+                          <p>Com: {activeLoan.borrower.name}</p>
+                          <p>Devolver até: {formatDate(activeLoan.dueDate)}</p>
+                        </div>
+                      )}
 
-                  <p className="mt-3 text-sm text-slate-300">
-                    {copy.book.synopsis ?? "Sem sinopse cadastrada."}
-                  </p>
+                      {hasActiveReservations && (
+                        <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
+                          <p>Reservas ativas: {copy.reservations.length}</p>
+                          <p>
+                            Primeiro da fila: {copy.reservations[0].user.name}
+                          </p>
+                        </div>
+                      )}
 
-                  <div className="mt-4 space-y-2 text-sm text-slate-300">
-                    <p>Dono: {copy.owner.name}</p>
-                    <p>Autor: {copy.book.author ?? "Não informado"}</p>
-                    <p>Gênero: {copy.book.genre}</p>
-                    <p>Edição: {copy.book.edition ?? "Não informada"}</p>
-                    <p>Código do exemplar: {copy.code}</p>
-                    <p>Estado: {copy.condition ?? "Não informado"}</p>
+                      {isOwner && (
+                        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 p-3 text-slate-300">
+                          Este exemplar pertence a você.
+                        </div>
+                      )}
 
-                    {activeLoan && (
-                      <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-200">
-                        <p>Com: {activeLoan.borrower.name}</p>
-                        <p>Devolver até: {formatDate(activeLoan.dueDate)}</p>
-                      </div>
-                    )}
+                      {isBorrower && (
+                        <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
+                          Este exemplar está emprestado para você.
+                        </div>
+                      )}
+                    </div>
 
-                    {hasActiveReservations && (
-                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
-                        <p>Reservas ativas: {copy.reservations.length}</p>
-                        <p>Primeiro da fila: {copy.reservations[0].user.name}</p>
-                      </div>
-                    )}
-
-                    {isOwner && (
-                      <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 p-3 text-slate-300">
-                        Este exemplar pertence a você.
-                      </div>
-                    )}
-
-                    {isBorrower && (
-                      <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
-                        Este exemplar está emprestado para você.
-                      </div>
-                    )}
-                  </div>
-
-                  {!currentUser ? (
-                    <Link
-                      href="/login"
-                      className="mt-5 block w-full rounded-xl bg-amber-400 px-4 py-2 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
-                    >
-                      Entrar para solicitar
-                    </Link>
-                  ) : isOwner ? (
-                    <button
-                      disabled
-                      className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
-                    >
-                      Seu exemplar
-                    </button>
-                  ) : isAvailable ? (
-                    <form action={requestLoanAction}>
-                      <input type="hidden" name="bookCopyId" value={copy.id} />
-
-                      <button
-                        type="submit"
-                        className="mt-5 w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                    {!currentUser ? (
+                      <Link
+                        href="/login"
+                        className="mt-5 block w-full rounded-xl bg-amber-400 px-4 py-2 text-center font-semibold text-slate-950 no-underline hover:bg-amber-300"
                       >
-                        Solicitar empréstimo
-                      </button>
-                    </form>
-                  ) : isBorrower ? (
-                    <button
-                      disabled
-                      className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
-                    >
-                      Está com você
-                    </button>
-                  ) : currentUserReservation ? (
-                    <button
-                      disabled
-                      className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
-                    >
-                      Reserva registrada
-                    </button>
-                  ) : (
-                    <form action={createReservationAction}>
-                      <input type="hidden" name="bookCopyId" value={copy.id} />
-
+                        Entrar para solicitar
+                      </Link>
+                    ) : isOwner ? (
                       <button
-                        type="submit"
-                        className="mt-5 w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                        disabled
+                        className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
                       >
-                        Reservar exemplar
+                        Seu exemplar
                       </button>
-                    </form>
-                  )}
+                    ) : isAvailable ? (
+                      <form action={requestLoanAction}>
+                        <input type="hidden" name="bookCopyId" value={copy.id} />
+
+                        <button
+                          type="submit"
+                          className="mt-5 w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                        >
+                          Solicitar empréstimo
+                        </button>
+                      </form>
+                    ) : isBorrower ? (
+                      <button
+                        disabled
+                        className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
+                      >
+                        Está com você
+                      </button>
+                    ) : currentUserReservation ? (
+                      <button
+                        disabled
+                        className="mt-5 w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400"
+                      >
+                        Reserva registrada
+                      </button>
+                    ) : (
+                      <form action={createReservationAction}>
+                        <input type="hidden" name="bookCopyId" value={copy.id} />
+
+                        <button
+                          type="submit"
+                          className="mt-5 w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300"
+                        >
+                          Reservar exemplar
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </article>
               );
             })}

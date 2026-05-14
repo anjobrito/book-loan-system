@@ -272,6 +272,84 @@ export async function returnMyLoanAction(formData: FormData): Promise<void> {
   revalidatePath(`/books/${result.bookCopyId}/history`);
 }
 
+export async function cancelMyReservationAction(formData: FormData): Promise<void> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return;
+  }
+
+  const reservationId = formData.get("reservationId");
+
+  if (typeof reservationId !== "string" || reservationId.trim().length === 0) {
+    return;
+  }
+
+  const reservation = await prisma.reservation.findUnique({
+    where: {
+      id: reservationId,
+    },
+    include: {
+      user: true,
+      bookCopy: {
+        include: {
+          book: true,
+          loans: {
+            where: {
+              status: "ACTIVE",
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!reservation) {
+    return;
+  }
+
+  if (reservation.status !== "ACTIVE" || reservation.userId !== currentUser.id) {
+    return;
+  }
+
+  const activeLoan = reservation.bookCopy.loans[0];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.reservation.update({
+      where: {
+        id: reservation.id,
+      },
+      data: {
+        status: "CANCELLED",
+        notes: `${currentUser.name} cancelou a própria reserva de "${reservation.bookCopy.book.title}".`,
+      },
+    });
+
+    if (activeLoan) {
+      await tx.loanHistory.create({
+        data: {
+          loanId: activeLoan.id,
+          bookCopyId: reservation.bookCopyId,
+          fromUserId: currentUser.id,
+          toUserId: null,
+          action: "RESERVATION_CANCELLED_BY_USER",
+          notes: `${currentUser.name} cancelou a própria reserva de "${reservation.bookCopy.book.title}".`,
+        },
+      });
+    }
+  });
+
+  revalidatePath("/books");
+  revalidatePath("/admin");
+  revalidatePath("/admin/loans");
+  revalidatePath("/admin/reservations");
+  revalidatePath(`/books/${reservation.bookCopyId}/history`);
+}
+
 export async function createReservationAction(formData: FormData): Promise<void> {
   const currentUser = await getCurrentUser();
 

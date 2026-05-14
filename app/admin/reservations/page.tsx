@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { cancelReservationAction } from "../reservation-actions";
 
 function formatDate(date: Date | null) {
@@ -14,18 +15,9 @@ function formatDate(date: Date | null) {
 }
 
 function getReservationStatusLabel(status: string) {
-  if (status === "ACTIVE") {
-    return "Ativa";
-  }
-
-  if (status === "CANCELLED") {
-    return "Cancelada";
-  }
-
-  if (status === "FULFILLED") {
-    return "Atendida";
-  }
-
+  if (status === "ACTIVE") return "Ativa";
+  if (status === "CANCELLED") return "Cancelada";
+  if (status === "FULFILLED") return "Atendida";
   return status;
 }
 
@@ -40,23 +32,15 @@ export default async function AdminReservationsPage() {
           book: true,
           owner: true,
           loans: {
-            where: {
-              status: "ACTIVE",
-            },
-            include: {
-              borrower: true,
-            },
-            orderBy: {
-              createdAt: "desc",
-            },
+            where: { status: "ACTIVE" },
+            include: { borrower: true },
+            orderBy: { createdAt: "desc" },
             take: 1,
           },
         },
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 
   return (
@@ -65,7 +49,6 @@ export default async function AdminReservationsPage() {
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold">Reservas</h1>
-
             <p className="mt-2 text-slate-300">
               Fila de usuários aguardando exemplares que estão emprestados.
             </p>
@@ -104,35 +87,28 @@ export default async function AdminReservationsPage() {
                           <p className="font-semibold text-white">
                             {reservation.bookCopy.book.title}
                           </p>
-
                           <p className="text-xs text-slate-400">
                             {reservation.bookCopy.book.type}
                           </p>
                         </td>
-
                         <td className="px-4 py-4 text-slate-300">
                           {reservation.bookCopy.code}
                         </td>
-
                         <td className="px-4 py-4 text-slate-300">
                           <p>{reservation.user.name}</p>
                           <p className="text-xs text-slate-500">
                             {reservation.user.email}
                           </p>
                         </td>
-
                         <td className="px-4 py-4 text-slate-300">
                           {reservation.bookCopy.owner.name}
                         </td>
-
                         <td className="px-4 py-4 text-slate-300">
                           {activeLoan ? activeLoan.borrower.name : "-"}
                         </td>
-
                         <td className="px-4 py-4 text-slate-300">
                           {formatDate(reservation.createdAt)}
                         </td>
-
                         <td className="px-4 py-4">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -146,7 +122,6 @@ export default async function AdminReservationsPage() {
                             {getReservationStatusLabel(reservation.status)}
                           </span>
                         </td>
-
                         <td className="px-4 py-4">
                           {isActive ? (
                             <form action={cancelReservationAction}>
@@ -155,13 +130,13 @@ export default async function AdminReservationsPage() {
                                 name="reservationId"
                                 value={reservation.id}
                               />
-
-                              <button
-                                type="submit"
-                                className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-400"
+                              <ConfirmSubmitButton
+                                confirmMessage={`Confirma cancelar a reserva de ${reservation.user.name} para "${reservation.bookCopy.book.title}"?`}
+                                pendingLabel="Cancelando..."
+                                className="rounded-xl bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                               >
                                 Cancelar reserva
-                              </button>
+                              </ConfirmSubmitButton>
                             </form>
                           ) : (
                             <button

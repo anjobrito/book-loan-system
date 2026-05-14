@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 
 export type RegisterState = {
   success: boolean;
@@ -50,14 +51,17 @@ export async function registerAction(
     };
   }
 
-  if (password.trim().length < 6) {
+  const trimmedPassword = password.trim();
+  const trimmedConfirmPassword = confirmPassword.trim();
+
+  if (trimmedPassword.length < 6) {
     return {
       success: false,
       message: "A senha precisa ter pelo menos 6 caracteres.",
     };
   }
 
-  if (password.trim() !== confirmPassword.trim()) {
+  if (trimmedPassword !== trimmedConfirmPassword) {
     return {
       success: false,
       message: "As senhas não conferem.",
@@ -83,7 +87,7 @@ export async function registerAction(
     data: {
       name: name.trim(),
       email: normalizedEmail,
-      password: password.trim(),
+      password: hashPassword(trimmedPassword),
       role: "USER",
     },
   });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { createReservationAction, requestLoanAction } from "./actions";
 
 function formatDate(date: Date) {
@@ -141,6 +142,49 @@ export default async function BooksPage() {
                         </span>
                       </div>
 
+                      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300 md:grid-cols-3">
+                        <p>
+                          <span className="font-semibold text-slate-500">
+                            Dono:
+                          </span>{" "}
+                          {copy.owner.name}
+                        </p>
+
+                        <p>
+                          <span className="font-semibold text-slate-500">
+                            Código:
+                          </span>{" "}
+                          {copy.code}
+                        </p>
+
+                        {activeLoan ? (
+                          <>
+                            <p>
+                              <span className="font-semibold text-slate-500">
+                                Com:
+                              </span>{" "}
+                              {activeLoan.borrower.name}
+                            </p>
+
+                            <p className="md:col-span-3">
+                              <span className="font-semibold text-slate-500">
+                                Devolver até:
+                              </span>{" "}
+                              <span className="text-amber-300">
+                                {formatDate(activeLoan.dueDate)}
+                              </span>
+                            </p>
+                          </>
+                        ) : (
+                          <p>
+                            <span className="font-semibold text-slate-500">
+                              Situação:
+                            </span>{" "}
+                            Pronto para empréstimo
+                          </p>
+                        )}
+                      </div>
+
                       <p className="mt-4 text-sm leading-6 text-slate-300">
                         {copy.book.synopsis ?? "Sem sinopse cadastrada."}
                       </p>
@@ -216,12 +260,13 @@ export default async function BooksPage() {
                               value={copy.id}
                             />
 
-                            <button
-                              type="submit"
-                              className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 sm:w-fit"
+                            <ConfirmSubmitButton
+                              confirmMessage={`Confirma solicitar empréstimo de "${copy.book.title}"?`}
+                              pendingLabel="Solicitando..."
+                              className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-fit"
                             >
                               Solicitar empréstimo
-                            </button>
+                            </ConfirmSubmitButton>
                           </form>
                         ) : isBorrower ? (
                           <button
@@ -245,12 +290,13 @@ export default async function BooksPage() {
                               value={copy.id}
                             />
 
-                            <button
-                              type="submit"
-                              className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 sm:w-fit"
+                            <ConfirmSubmitButton
+                              confirmMessage={`Confirma reservar "${copy.book.title}"?`}
+                              pendingLabel="Reservando..."
+                              className="w-full rounded-xl bg-amber-400 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-fit"
                             >
                               Reservar exemplar
-                            </button>
+                            </ConfirmSubmitButton>
                           </form>
                         )}
                       </div>

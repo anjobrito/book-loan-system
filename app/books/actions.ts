@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { calculateLoanDueDate } from "@/lib/exchange-dates";
+import { processLoanReturn } from "@/lib/loan-return";
 
 export type CreateBookState = {
   success: boolean;
@@ -239,6 +240,36 @@ export async function requestLoanAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
   revalidatePath("/admin/loans");
   revalidatePath("/admin/notifications");
+}
+
+export async function returnMyLoanAction(formData: FormData): Promise<void> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return;
+  }
+
+  const loanId = formData.get("loanId");
+
+  if (typeof loanId !== "string" || loanId.trim().length === 0) {
+    return;
+  }
+
+  const result = await processLoanReturn({
+    loanId,
+    borrowerId: currentUser.id,
+  });
+
+  if (!result) {
+    return;
+  }
+
+  revalidatePath("/books");
+  revalidatePath("/admin");
+  revalidatePath("/admin/loans");
+  revalidatePath("/admin/notifications");
+  revalidatePath("/admin/reservations");
+  revalidatePath(`/books/${result.bookCopyId}/history`);
 }
 
 export async function createReservationAction(formData: FormData): Promise<void> {

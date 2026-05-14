@@ -30,12 +30,14 @@ function FormField({
   placeholder,
   required = false,
   type = "text",
+  helpText,
 }: {
   label: string;
   name: string;
   placeholder: string;
   required?: boolean;
   type?: string;
+  helpText?: string;
 }) {
   return (
     <div>
@@ -54,6 +56,8 @@ function FormField({
         className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
         placeholder={placeholder}
       />
+
+      {helpText && <p className="mt-2 text-xs leading-5 text-slate-400">{helpText}</p>}
     </div>
   );
 }
@@ -82,6 +86,13 @@ export default function NewBookForm() {
           {state.message}
         </div>
       )}
+
+      <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+        <strong className="text-amber-300">Sobre o código do exemplar:</strong>{" "}
+        esse código identifica fisicamente o livro na troca. Use algo simples,
+        como LIV-001, MANGA-003 ou COMIC-010, e coloque o mesmo código em uma
+        etiqueta ou anotação no livro.
+      </div>
 
       <div className="grid gap-5 md:grid-cols-2">
         <FormField
@@ -116,7 +127,8 @@ export default function NewBookForm() {
           label="Código do exemplar"
           name="code"
           required
-          placeholder="Ex: BOOK-002"
+          placeholder="Ex: LIV-001"
+          helpText="Pegue esse código do próprio livro ou crie um novo código e marque no exemplar físico. Ele ajuda a identificar o livro correto no dia da troca."
         />
 
         <FormField
@@ -190,7 +202,11 @@ export default function NewBookForm() {
       <div className="flex flex-col-reverse gap-3 border-t border-slate-800 pt-6 sm:flex-row sm:justify-end">
         <button
           type="button"
-          onClick={() => router.push("/books")}
+          onClick={() => {
+            if (window.confirm("Deseja cancelar o cadastro deste livro?")) {
+              router.push("/books");
+            }
+          }}
           className="w-full rounded-xl border border-slate-700 px-6 py-3 font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
         >
           Cancelar

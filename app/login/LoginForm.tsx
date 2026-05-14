@@ -26,7 +26,8 @@ export default function LoginForm() {
           type="email"
           name="email"
           required
-          placeholder="anjobrito@gmail.com"
+          autoComplete="email"
+          placeholder="seuemail@exemplo.com"
           className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-amber-400"
         />
       </div>
@@ -40,7 +41,8 @@ export default function LoginForm() {
           type="password"
           name="password"
           required
-          placeholder="123456"
+          autoComplete="current-password"
+          placeholder="Digite sua senha"
           className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-amber-400"
         />
       </div>

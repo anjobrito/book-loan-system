@@ -9,20 +9,36 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  name     String
-  email    String @unique
-  password String
-  role     String @default("USER")
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  role            String    @default("USER")
+  accessStatus    String    @default("APPROVED")
+  emailVerifiedAt DateTime?
+  approvedAt      DateTime?
 
-  ownedCopies   BookCopy[]     @relation("BookOwner")
-  borrowedLoans Loan[]         @relation("BorrowerLoans")
-  ownedLoans    Loan[]         @relation("OwnerLoans")
-  notifications Notification[]
-  reservations  Reservation[]
+  ownedCopies        BookCopy[]          @relation("BookOwner")
+  borrowedLoans      Loan[]              @relation("BorrowerLoans")
+  ownedLoans         Loan[]              @relation("OwnerLoans")
+  notifications      Notification[]
+  reservations       Reservation[]
+  emailVerifications EmailVerification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String
+  code      String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model Book {

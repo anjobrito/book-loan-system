@@ -77,6 +77,7 @@ export async function createBookAction(
     const edition = getOptionalString(formData, "edition");
     const publisher = getOptionalString(formData, "publisher");
     const author = getOptionalString(formData, "author");
+    const imageUrl = getOptionalString(formData, "imageUrl");
     const publicationYear = getOptionalNumber(formData, "publicationYear");
 
     const existingCopy = await prisma.bookCopy.findUnique({
@@ -102,6 +103,7 @@ export async function createBookAction(
         publisher,
         author,
         genre,
+        imageUrl,
         copies: {
           create: {
             ownerId: currentUser.id,

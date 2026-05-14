@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import {
+  cancelMyReservationAction,
   createReservationAction,
   requestLoanAction,
   returnMyLoanAction,
@@ -20,32 +21,18 @@ export default async function BooksPage() {
       book: true,
       owner: true,
       loans: {
-        where: {
-          status: "ACTIVE",
-        },
-        include: {
-          borrower: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
+        where: { status: "ACTIVE" },
+        include: { borrower: true },
+        orderBy: { createdAt: "desc" },
         take: 1,
       },
       reservations: {
-        where: {
-          status: "ACTIVE",
-        },
-        include: {
-          user: true,
-        },
-        orderBy: {
-          createdAt: "asc",
-        },
+        where: { status: "ACTIVE" },
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 
   return (
@@ -183,7 +170,12 @@ export default async function BooksPage() {
                             </ConfirmSubmitButton>
                           </form>
                         ) : currentUserReservation ? (
-                          <button disabled className="w-full cursor-not-allowed rounded-xl bg-slate-700 px-4 py-2 font-semibold text-slate-400 sm:w-fit">Reserva registrada</button>
+                          <form action={cancelMyReservationAction}>
+                            <input type="hidden" name="reservationId" value={currentUserReservation.id} />
+                            <ConfirmSubmitButton confirmMessage={`Confirma cancelar sua reserva de "${copy.book.title}"?`} pendingLabel="Cancelando..." className="w-full rounded-xl border border-red-400/50 px-4 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500 sm:w-fit">
+                              Cancelar reserva
+                            </ConfirmSubmitButton>
+                          </form>
                         ) : (
                           <form action={createReservationAction}>
                             <input type="hidden" name="bookCopyId" value={copy.id} />

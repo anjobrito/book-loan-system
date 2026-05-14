@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME } from "@/lib/auth";
+import { hashPassword, isPasswordHash, verifyPassword } from "@/lib/password";
 
 export type LoginState = {
   success: boolean;
@@ -31,17 +32,31 @@ export async function loginAction(
     };
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+  const trimmedPassword = password.trim();
+
   const user = await prisma.user.findUnique({
     where: {
-      email: email.trim(),
+      email: normalizedEmail,
     },
   });
 
-  if (!user || user.password !== password.trim()) {
+  if (!user || !verifyPassword(trimmedPassword, user.password)) {
     return {
       success: false,
       message: "E-mail ou senha inválidos.",
     };
+  }
+
+  if (!isPasswordHash(user.password)) {
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        password: hashPassword(trimmedPassword),
+      },
+    });
   }
 
   const cookieStore = await cookies();

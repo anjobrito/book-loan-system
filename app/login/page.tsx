@@ -21,32 +21,12 @@ export default async function LoginPage() {
             <h1 className="text-3xl font-bold">Entrar</h1>
 
             <p className="mt-3 text-sm text-slate-300">
-              Informe seu e-mail e senha para acessar o Book Loan System.
+              Informe suas credenciais cadastradas para acessar o Book Loan
+              System.
             </p>
           </div>
 
           <LoginForm />
-
-          <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300">
-            <p className="font-semibold text-amber-300">Usuários de teste</p>
-
-            <div className="mt-3 space-y-2">
-              <p>
-                <span className="text-slate-500">Admin:</span>{" "}
-                anjobrito@gmail.com / 123456
-              </p>
-
-              <p>
-                <span className="text-slate-500">Usuário:</span>{" "}
-                carlos@email.com / 123456
-              </p>
-
-              <p>
-                <span className="text-slate-500">Usuário:</span>{" "}
-                marina@email.com / 123456
-              </p>
-            </div>
-          </div>
         </div>
       </section>
     </main>

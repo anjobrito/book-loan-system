@@ -173,7 +173,7 @@ export default async function BooksPage() {
                             <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
                               <p>Reservas ativas: {copy.reservations.length}</p>
                               <p>
-                                Primeiro da fila:{" "}
+                                Primeiro da fila: {" "}
                                 {copy.reservations[0].user.name}
                               </p>
                             </div>

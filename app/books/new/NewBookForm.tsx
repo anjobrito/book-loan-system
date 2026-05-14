@@ -156,13 +156,8 @@ export default function NewBookForm() {
             label="URL da capa"
             name="imageUrl"
             type="url"
-            placeholder="Ex: https://m.media-amazon.com/images/I/capa.jpg"
+            placeholder="Ex: https://exemplo.com/capa.jpg"
           />
-
-          <p className="mt-2 text-xs text-slate-500">
-            Cole uma URL pública da imagem da capa. Upload de imagem pode ser
-            adicionado depois com Supabase Storage.
-          </p>
         </div>
 
         <div className="md:col-span-2">

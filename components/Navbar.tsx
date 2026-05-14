@@ -13,7 +13,7 @@ export default async function Navbar() {
             href="/"
             className="navbar-brand mb-0 fw-bold text-warning text-decoration-none"
           >
-            Book Loan System
+            Biblioteca comunitária da empresa
           </Link>
 
           <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3">

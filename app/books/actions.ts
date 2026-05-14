@@ -11,6 +11,11 @@ export type CreateBookState = {
   message: string;
 };
 
+export type UpdateBookState = {
+  success: boolean;
+  message: string;
+};
+
 const MAX_ACTIVE_LOANS_PER_USER = 2;
 
 function getRequiredString(formData: FormData, field: string): string {
@@ -132,6 +137,124 @@ export async function createBookAction(
     return {
       success: false,
       message: "Erro ao cadastrar livro. Verifique os campos e tente novamente.",
+    };
+  }
+}
+
+export async function updateBookAction(
+  _previousState: UpdateBookState,
+  formData: FormData
+): Promise<UpdateBookState> {
+  try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return {
+        success: false,
+        message: "Você precisa estar logado para editar livros.",
+      };
+    }
+
+    const bookCopyId = getRequiredString(formData, "bookCopyId");
+    const bookId = getRequiredString(formData, "bookId");
+    const title = getRequiredString(formData, "title");
+    const type = getRequiredString(formData, "type");
+    const code = getRequiredString(formData, "code");
+    const genre = getRequiredString(formData, "genre");
+    const condition = getRequiredString(formData, "condition");
+
+    const synopsis = getOptionalString(formData, "synopsis");
+    const edition = getOptionalString(formData, "edition");
+    const publisher = getOptionalString(formData, "publisher");
+    const author = getOptionalString(formData, "author");
+    const imageUrl = getOptionalString(formData, "imageUrl");
+    const publicationYear = getOptionalNumber(formData, "publicationYear");
+
+    const copy = await prisma.bookCopy.findUnique({
+      where: {
+        id: bookCopyId,
+      },
+      include: {
+        book: true,
+      },
+    });
+
+    if (!copy || copy.bookId !== bookId) {
+      return {
+        success: false,
+        message: "Exemplar não encontrado.",
+      };
+    }
+
+    const canEdit = currentUser.role === "ADMIN" || copy.ownerId === currentUser.id;
+
+    if (!canEdit) {
+      return {
+        success: false,
+        message: "Você só pode editar livros cadastrados por você.",
+      };
+    }
+
+    const existingCopy = await prisma.bookCopy.findFirst({
+      where: {
+        code,
+        NOT: {
+          id: bookCopyId,
+        },
+      },
+    });
+
+    if (existingCopy) {
+      return {
+        success: false,
+        message: "Já existe outro exemplar cadastrado com esse código.",
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.book.update({
+        where: {
+          id: bookId,
+        },
+        data: {
+          title,
+          type,
+          synopsis,
+          edition,
+          publicationYear,
+          publisher,
+          author,
+          genre,
+          imageUrl,
+        },
+      });
+
+      await tx.bookCopy.update({
+        where: {
+          id: bookCopyId,
+        },
+        data: {
+          code,
+          condition,
+        },
+      });
+    });
+
+    revalidatePath("/books");
+    revalidatePath("/admin");
+    revalidatePath(`/books/${bookCopyId}/edit`);
+    revalidatePath(`/books/${bookCopyId}/history`);
+
+    return {
+      success: true,
+      message: "Livro atualizado com sucesso.",
+    };
+  } catch (error) {
+    console.error("Erro ao atualizar livro:", error);
+
+    return {
+      success: false,
+      message: "Erro ao atualizar livro. Verifique os campos e tente novamente.",
     };
   }
 }

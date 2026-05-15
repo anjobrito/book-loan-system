@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
-import { approveUserAction, blockUserAction } from "./actions";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import {
+  approveUserAction,
+  blockUserAction,
+  deleteUserAndBooksAction,
+} from "./actions";
 
 function formatDate(date: Date | null) {
   return date ? new Intl.DateTimeFormat("pt-BR").format(date) : "-";
@@ -26,7 +31,22 @@ function statusBadgeClass(status: string) {
 
 export default async function AdminUsersPage() {
   const currentUser = await requireAdmin();
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+  const users = await prisma.user.findMany({
+    include: {
+      ownedCopies: true,
+      borrowedLoans: {
+        where: {
+          status: "ACTIVE",
+        },
+      },
+      reservations: {
+        where: {
+          status: "ACTIVE",
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
@@ -45,6 +65,7 @@ export default async function AdminUsersPage() {
             const isBlocked = user.accessStatus === "BLOCKED";
             const approveDisabled = isCurrentUser || isApproved;
             const blockDisabled = isCurrentUser || isBlocked;
+            const deleteDisabled = isCurrentUser;
 
             return (
               <article
@@ -79,9 +100,22 @@ export default async function AdminUsersPage() {
                       <p>Cadastro: {formatDate(user.createdAt)}</p>
                       <p>Aprovação: {formatDate(user.approvedAt)}</p>
                     </div>
+
+                    <div className="mt-4 grid gap-2 text-sm text-slate-300 sm:grid-cols-3">
+                      <p>Livros cadastrados: {user.ownedCopies.length}</p>
+                      <p>Empréstimos ativos: {user.borrowedLoans.length}</p>
+                      <p>Reservas ativas: {user.reservations.length}</p>
+                    </div>
+
+                    <p className="mt-4 max-w-3xl rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
+                      Excluir usuário remove o cadastro, livros cadastrados por
+                      ele, reservas, empréstimos relacionados, notificações e
+                      histórico desses exemplares. Use apenas para limpeza de
+                      cadastros/testes ou remoção definitiva.
+                    </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
                     <form action={approveUserAction}>
                       <input type="hidden" name="userId" value={user.id} />
                       <button
@@ -96,8 +130,8 @@ export default async function AdminUsersPage() {
                         }
                         className={
                           approveDisabled
-                            ? "cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
-                            : "rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+                            ? "w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
+                            : "w-full rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
                         }
                       >
                         {isApproved ? "Aprovado" : "Aprovar"}
@@ -118,12 +152,28 @@ export default async function AdminUsersPage() {
                         }
                         className={
                           blockDisabled
-                            ? "cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
-                            : "rounded-xl border border-red-500 px-4 py-2 font-semibold text-red-300 hover:bg-red-500/10"
+                            ? "w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
+                            : "w-full rounded-xl border border-red-500 px-4 py-2 font-semibold text-red-300 hover:bg-red-500/10"
                         }
                       >
                         {isBlocked ? "Bloqueado" : "Bloquear"}
                       </button>
+                    </form>
+
+                    <form action={deleteUserAndBooksAction}>
+                      <input type="hidden" name="userId" value={user.id} />
+                      <ConfirmSubmitButton
+                        confirmMessage={`ATENÇÃO: confirma excluir definitivamente o usuário ${user.name}, seus livros cadastrados e todos os vínculos relacionados? Esta ação não pode ser desfeita.`}
+                        pendingLabel="Excluindo..."
+                        disabled={deleteDisabled}
+                        className={
+                          deleteDisabled
+                            ? "w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
+                            : "w-full rounded-xl border border-red-600 bg-black px-4 py-2 font-semibold text-red-300 hover:bg-red-500/10"
+                        }
+                      >
+                        Excluir
+                      </ConfirmSubmitButton>
                     </form>
                   </div>
                 </div>

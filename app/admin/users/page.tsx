@@ -5,6 +5,8 @@ import {
   approveUserAction,
   blockUserAction,
   deleteUserAndBooksAction,
+  demoteAdminToUserAction,
+  promoteUserToAdminAction,
 } from "./actions";
 
 function formatDate(date: Date | null) {
@@ -63,9 +65,11 @@ export default async function AdminUsersPage() {
             const isCurrentUser = user.id === currentUser.id;
             const isApproved = user.accessStatus === "APPROVED";
             const isBlocked = user.accessStatus === "BLOCKED";
+            const isAdmin = user.role === "ADMIN";
             const approveDisabled = isCurrentUser || isApproved;
             const blockDisabled = isCurrentUser || isBlocked;
             const deleteDisabled = isCurrentUser;
+            const roleDisabled = isCurrentUser;
 
             return (
               <article
@@ -89,6 +93,10 @@ export default async function AdminUsersPage() {
                         )}`}
                       >
                         {statusLabel(user.accessStatus)}
+                      </span>
+
+                      <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
+                        {user.role}
                       </span>
                     </div>
 
@@ -115,7 +123,7 @@ export default async function AdminUsersPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:min-w-80">
                     <form action={approveUserAction}>
                       <input type="hidden" name="userId" value={user.id} />
                       <button
@@ -159,6 +167,40 @@ export default async function AdminUsersPage() {
                         {isBlocked ? "Bloqueado" : "Bloquear"}
                       </button>
                     </form>
+
+                    {isAdmin ? (
+                      <form action={demoteAdminToUserAction}>
+                        <input type="hidden" name="userId" value={user.id} />
+                        <ConfirmSubmitButton
+                          confirmMessage={`Confirma remover o perfil ADMIN de ${user.name}?`}
+                          pendingLabel="Alterando..."
+                          disabled={roleDisabled}
+                          className={
+                            roleDisabled
+                              ? "w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
+                              : "w-full rounded-xl border border-slate-600 px-4 py-2 font-semibold text-slate-200 hover:bg-slate-800"
+                          }
+                        >
+                          Tornar usuário
+                        </ConfirmSubmitButton>
+                      </form>
+                    ) : (
+                      <form action={promoteUserToAdminAction}>
+                        <input type="hidden" name="userId" value={user.id} />
+                        <ConfirmSubmitButton
+                          confirmMessage={`Confirma promover ${user.name} para ADMIN? Essa pessoa poderá aprovar, bloquear, excluir usuários e administrar o sistema.`}
+                          pendingLabel="Promovendo..."
+                          disabled={roleDisabled}
+                          className={
+                            roleDisabled
+                              ? "w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 font-semibold text-slate-500 opacity-60"
+                              : "w-full rounded-xl border border-red-500 px-4 py-2 font-semibold text-red-300 hover:bg-red-500/10"
+                          }
+                        >
+                          Tornar admin
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
 
                     <form action={deleteUserAndBooksAction}>
                       <input type="hidden" name="userId" value={user.id} />

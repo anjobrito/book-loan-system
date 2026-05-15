@@ -32,12 +32,46 @@ async function updateUserAccessStatus(
   revalidatePath("/admin/users");
 }
 
+async function updateUserRole(userId: FormDataEntryValue | null, role: "ADMIN" | "USER") {
+  const currentUser = await requireAdmin();
+
+  if (typeof userId !== "string" || userId.trim().length === 0) {
+    return;
+  }
+
+  if (currentUser.id === userId) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: {
+      role,
+      accessStatus: "APPROVED",
+      approvedAt: new Date(),
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/users");
+}
+
 export async function approveUserAction(formData: FormData): Promise<void> {
   await updateUserAccessStatus(formData.get("userId"), "APPROVED");
 }
 
 export async function blockUserAction(formData: FormData): Promise<void> {
   await updateUserAccessStatus(formData.get("userId"), "BLOCKED");
+}
+
+export async function promoteUserToAdminAction(formData: FormData): Promise<void> {
+  await updateUserRole(formData.get("userId"), "ADMIN");
+}
+
+export async function demoteAdminToUserAction(formData: FormData): Promise<void> {
+  await updateUserRole(formData.get("userId"), "USER");
 }
 
 export async function deleteUserAndBooksAction(formData: FormData): Promise<void> {

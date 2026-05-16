@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import { processNotificationsNowAction } from "./actions";
 
 function formatDate(date: Date | null) {
   if (!date) {
@@ -35,25 +37,37 @@ function getNotificationStatusLabel(status: string) {
 export default async function AdminNotificationsPage() {
   await requireAdmin();
 
-  const notifications = await prisma.notification.findMany({
-    include: {
-      user: true,
-      loan: {
-        include: {
-          bookCopy: {
-            include: {
-              book: true,
+  const now = new Date();
+
+  const [notifications, pendingDueCount] = await Promise.all([
+    prisma.notification.findMany({
+      include: {
+        user: true,
+        loan: {
+          include: {
+            bookCopy: {
+              include: {
+                book: true,
+              },
             },
+            borrower: true,
+            owner: true,
           },
-          borrower: true,
-          owner: true,
         },
       },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.notification.count({
+      where: {
+        status: "PENDING",
+        scheduledFor: {
+          lte: now,
+        },
+      },
+    }),
+  ]);
 
   return (
     <main className="min-h-[calc(100vh-57px)] bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
@@ -65,7 +79,34 @@ export default async function AdminNotificationsPage() {
             <p className="mt-2 text-slate-300">
               Lembretes de devolução agendados pelo administrador.
             </p>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Pendentes prontas para envio: {pendingDueCount}
+            </p>
           </div>
+
+          <form action={processNotificationsNowAction}>
+            <ConfirmSubmitButton
+              confirmMessage="Confirma processar e enviar agora todas as notificações pendentes já vencidas?"
+              pendingLabel="Enviando..."
+              disabled={pendingDueCount === 0}
+              className={
+                pendingDueCount === 0
+                  ? "w-full cursor-not-allowed rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 font-semibold text-slate-500 opacity-60 md:w-auto"
+                  : "w-full rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700 md:w-auto"
+              }
+            >
+              Enviar pendentes agora
+            </ConfirmSubmitButton>
+          </form>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm leading-6 text-slate-300">
+          <p>
+            O botão acima envia apenas notificações com status Pendente e data de
+            agendamento menor ou igual ao horário atual. Notificações futuras
+            permanecem agendadas.
+          </p>
         </div>
 
         {notifications.length === 0 ? (
@@ -128,7 +169,7 @@ export default async function AdminNotificationsPage() {
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             notification.status === "PENDING"
-                              ? "bg-amber-500/20 text-amber-300"
+                              ? "bg-red-500/20 text-red-300"
                               : notification.status === "SENT"
                                 ? "bg-green-500/20 text-green-300"
                                 : notification.status === "CANCELLED"

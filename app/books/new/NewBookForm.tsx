@@ -85,6 +85,7 @@ export default function NewBookForm() {
   const router = useRouter();
   const [state, formAction] = useActionState(createBookAction, initialState);
   const [isbn, setIsbn] = useState("");
+  const [manualQuery, setManualQuery] = useState("");
   const [lookupMessage, setLookupMessage] = useState("");
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [title, setTitle] = useState("");
@@ -105,6 +106,20 @@ export default function NewBookForm() {
     }
   }, [state.success, router]);
 
+  function applyLookupData(data: BookLookupResult) {
+    if (data.title) setTitle(data.title);
+    if (data.author) setAuthor(data.author);
+    if (data.publisher) setPublisher(data.publisher);
+    if (data.publicationYear) setPublicationYear(String(data.publicationYear));
+    if (data.synopsis) setSynopsis(data.synopsis);
+    if (data.genre) setGenre(data.genre);
+    if (data.imageUrl) setImageUrl(data.imageUrl);
+
+    setLookupMessage(
+      `Dados encontrados em ${data.source === "OPEN_LIBRARY" ? "Open Library" : "Google Books"}. Revise antes de cadastrar.`
+    );
+  }
+
   async function lookupBookByIsbn() {
     const cleanIsbn = isbn.replace(/[^0-9Xx]/g, "");
 
@@ -121,21 +136,41 @@ export default function NewBookForm() {
       const data = (await response.json()) as BookLookupResult;
 
       if (!response.ok || !data.found) {
-        setLookupMessage(data.message ?? "Nenhum livro encontrado para este ISBN.");
+        setLookupMessage(
+          `${data.message ?? "Nenhum livro encontrado para este ISBN."} Tente a busca por título/autor abaixo.`
+        );
         return;
       }
 
-      if (data.title) setTitle(data.title);
-      if (data.author) setAuthor(data.author);
-      if (data.publisher) setPublisher(data.publisher);
-      if (data.publicationYear) setPublicationYear(String(data.publicationYear));
-      if (data.synopsis) setSynopsis(data.synopsis);
-      if (data.genre) setGenre(data.genre);
-      if (data.imageUrl) setImageUrl(data.imageUrl);
+      applyLookupData(data);
+    } catch {
+      setLookupMessage("Erro ao buscar dados do livro. Tente novamente.");
+    } finally {
+      setIsLookupLoading(false);
+    }
+  }
 
-      setLookupMessage(
-        `Dados encontrados em ${data.source === "OPEN_LIBRARY" ? "Open Library" : "Google Books"}. Revise antes de cadastrar.`
-      );
+  async function lookupBookByTitleOrAuthor() {
+    const query = manualQuery.trim();
+
+    if (query.length < 3) {
+      setLookupMessage("Informe pelo menos 3 caracteres para buscar por título ou autor.");
+      return;
+    }
+
+    setIsLookupLoading(true);
+    setLookupMessage("Buscando dados por título/autor...");
+
+    try {
+      const response = await fetch(`/api/books/lookup?q=${encodeURIComponent(query)}`);
+      const data = (await response.json()) as BookLookupResult;
+
+      if (!response.ok || !data.found) {
+        setLookupMessage(data.message ?? "Nenhum resultado encontrado para essa busca.");
+        return;
+      }
+
+      applyLookupData(data);
     } catch {
       setLookupMessage("Erro ao buscar dados do livro. Tente novamente.");
     } finally {
@@ -158,11 +193,11 @@ export default function NewBookForm() {
       )}
 
       <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-        <strong className="text-amber-300">Cadastro rápido por ISBN:</strong>{" "}
+        <strong className="text-amber-300">Cadastro rápido:</strong>{" "}
         livros, mangás e muitos comics possuem ISBN perto do código de barras ou
-        nas primeiras páginas. Informe o ISBN e clique em buscar para preencher
-        os dados automaticamente. Algumas edições, comics avulsos ou materiais
-        antigos podem não ser encontrados.
+        nas primeiras páginas. Se o ISBN não for encontrado, use a busca por
+        título/autor como plano B. Algumas edições, comics avulsos ou materiais
+        antigos podem não aparecer nas bases públicas.
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
@@ -184,9 +219,34 @@ export default function NewBookForm() {
             onClick={lookupBookByIsbn}
             className="rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
-            {isLookupLoading ? "Buscando..." : "Buscar dados"}
+            {isLookupLoading ? "Buscando..." : "Buscar por ISBN"}
           </button>
         </div>
+
+        <div className="mt-4 border-t border-slate-800 pt-4">
+          <label htmlFor="manualLookup" className="mb-2 block text-sm font-medium text-slate-200">
+            Busca alternativa por título ou autor
+          </label>
+          <div className="flex flex-col gap-3 md:flex-row">
+            <input
+              id="manualLookup"
+              type="text"
+              value={manualQuery}
+              onChange={(event) => setManualQuery(event.target.value)}
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+              placeholder="Ex: Agatha Christie Assassinato no Expresso do Oriente"
+            />
+            <button
+              type="button"
+              disabled={isLookupLoading}
+              onClick={lookupBookByTitleOrAuthor}
+              className="rounded-xl border border-red-500 px-5 py-3 font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+            >
+              {isLookupLoading ? "Buscando..." : "Buscar por título/autor"}
+            </button>
+          </div>
+        </div>
+
         {lookupMessage && (
           <p className="mt-3 text-sm text-slate-300">{lookupMessage}</p>
         )}

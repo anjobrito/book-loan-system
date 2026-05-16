@@ -34,6 +34,10 @@ function sanitizeIsbn(value: string) {
   return value.replace(/[^0-9Xx]/g, "").toUpperCase();
 }
 
+function sanitizeSearchTerm(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
 function getYear(value?: string) {
   if (!value) {
     return undefined;
@@ -307,40 +311,92 @@ async function lookupOpenLibrary(isbn: string): Promise<BookLookupResult | null>
   return null;
 }
 
+async function lookupByTitleOrAuthor(query: string): Promise<BookLookupResult | null> {
+  const googleResult = await lookupGoogleBooksByQuery(query);
+
+  if (googleResult?.title) {
+    return googleResult;
+  }
+
+  const response = await fetch(
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1&language=por`,
+    {
+      next: {
+        revalidate: 60 * 60 * 24,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  const doc = data.docs?.[0];
+
+  if (!doc?.title) {
+    return null;
+  }
+
+  return {
+    found: true,
+    source: "OPEN_LIBRARY",
+    title: doc.title,
+    author: Array.isArray(doc.author_name) ? doc.author_name.join(", ") : undefined,
+    publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : undefined,
+    publicationYear: doc.first_publish_year,
+    genre: Array.isArray(doc.subject) ? doc.subject[0] : undefined,
+    imageUrl: doc.cover_i
+      ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`
+      : undefined,
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const isbn = sanitizeIsbn(searchParams.get("isbn") ?? "");
+  const query = sanitizeSearchTerm(searchParams.get("q") ?? "");
 
-  if (isbn.length < 10) {
+  if (isbn.length < 10 && query.length < 3) {
     return NextResponse.json(
       {
         found: false,
-        message: "Informe um ISBN válido com 10 ou 13 dígitos.",
+        message: "Informe um ISBN válido ou uma busca por título/autor com pelo menos 3 caracteres.",
       },
       { status: 400 }
     );
   }
 
   try {
-    const googleResult = await lookupGoogleBooks(isbn);
+    if (isbn.length >= 10) {
+      const googleResult = await lookupGoogleBooks(isbn);
 
-    if (googleResult?.title) {
-      return NextResponse.json(googleResult);
+      if (googleResult?.title) {
+        return NextResponse.json(googleResult);
+      }
+
+      const openLibraryResult = await lookupOpenLibrary(isbn);
+
+      if (openLibraryResult?.title) {
+        return NextResponse.json(openLibraryResult);
+      }
     }
 
-    const openLibraryResult = await lookupOpenLibrary(isbn);
+    if (query.length >= 3) {
+      const queryResult = await lookupByTitleOrAuthor(query);
 
-    if (openLibraryResult?.title) {
-      return NextResponse.json(openLibraryResult);
+      if (queryResult?.title) {
+        return NextResponse.json(queryResult);
+      }
     }
 
     return NextResponse.json({
       found: false,
       message:
-        "Nenhum livro encontrado para este ISBN nas bases Google Books/Open Library. Confira se o código foi digitado corretamente ou preencha manualmente.",
+        "Nenhum livro encontrado nas bases Google Books/Open Library. Confira o ISBN ou tente buscar por título e autor.",
     });
   } catch (error) {
-    console.error("Erro ao buscar livro por ISBN:", { isbn, error });
+    console.error("Erro ao buscar livro:", { isbn, query, error });
 
     return NextResponse.json(
       {

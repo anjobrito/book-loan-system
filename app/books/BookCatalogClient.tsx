@@ -78,6 +78,12 @@ function getStatusClass(status: string) {
     : "bg-red-500/20 text-red-300";
 }
 
+function getAvailableTypes(copies: BookCatalogCopy[]) {
+  return Array.from(new Set(copies.map((copy) => copy.book.type)))
+    .filter(Boolean)
+    .sort((first, second) => first.localeCompare(second, "pt-BR"));
+}
+
 function groupCopiesByCategory(copies: BookCatalogCopy[]): CategoryGroup[] {
   const groups = new Map<string, BookCatalogCopy[]>();
 
@@ -127,13 +133,37 @@ export default function BookCatalogClient({
   currentUser,
 }: BookCatalogClientProps) {
   const [selectedCopyId, setSelectedCopyId] = useState<string | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const categoryGroups = useMemo(() => groupCopiesByCategory(copies), [copies]);
+  const availableTypes = useMemo(() => getAvailableTypes(copies), [copies]);
+  const filteredCopies = useMemo(() => {
+    if (selectedTypes.length === 0) {
+      return copies;
+    }
+
+    return copies.filter((copy) => selectedTypes.includes(copy.book.type));
+  }, [copies, selectedTypes]);
+  const categoryGroups = useMemo(
+    () => groupCopiesByCategory(filteredCopies),
+    [filteredCopies]
+  );
   const selectedCopy = useMemo(
     () => copies.find((copy) => copy.id === selectedCopyId) ?? null,
     [copies, selectedCopyId]
   );
+
+  function toggleType(type: string) {
+    setSelectedTypes((currentTypes) =>
+      currentTypes.includes(type)
+        ? currentTypes.filter((currentType) => currentType !== type)
+        : [...currentTypes, type]
+    );
+  }
+
+  function clearFilters() {
+    setSelectedTypes([]);
+  }
 
   function scrollCategory(category: string, direction: "left" | "right") {
     const list = categoryRefs.current[category];
@@ -159,87 +189,135 @@ export default function BookCatalogClient({
 
   return (
     <>
-      <div className="space-y-5">
-        {categoryGroups.map((group) => (
-          <section key={group.name} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow md:p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-amber-300 md:text-xl">
-                  {group.name}
-                </h2>
-                <p className="text-xs text-slate-400">
-                  {group.copies.length} exemplar{group.copies.length === 1 ? "" : "es"}
-                </p>
-              </div>
+      <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow md:p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-amber-300">Filtros</h2>
+            <p className="text-xs text-slate-400">
+              Nenhum filtro marcado exibe todos os livros. Você também pode marcar vários tipos.
+            </p>
+          </div>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => scrollCategory(group.name, "left")}
-                  className="rounded-full border border-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-800"
-                  aria-label={`Voltar categoria ${group.name}`}
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollCategory(group.name, "right")}
-                  className="rounded-full border border-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-800"
-                  aria-label={`Avançar categoria ${group.name}`}
-                >
-                  ›
-                </button>
-              </div>
-            </div>
-
-            <div
-              ref={(element) => {
-                categoryRefs.current[group.name] = element;
-              }}
-              className="flex gap-4 overflow-x-auto scroll-smooth pb-2"
+          {selectedTypes.length > 0 && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="w-fit rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
             >
-              {group.copies.map((copy) => (
-                <button
-                  key={copy.id}
-                  type="button"
-                  onClick={() => setSelectedCopyId(copy.id)}
-                  className="group w-40 shrink-0 text-left outline-none md:w-44"
-                >
-                  <div className="flex h-full min-h-[22.5rem] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow transition group-hover:-translate-y-1 group-hover:border-amber-400/40 group-hover:shadow-2xl">
-                    <div className="relative">
-                      <BookCover copy={copy} size="card" />
-                      <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[0.65rem] font-semibold ${getStatusClass(copy.status)}`}>
-                        {getStatusLabel(copy.status)}
-                      </span>
-                    </div>
+              Limpar filtros
+            </button>
+          )}
+        </div>
 
-                    <div className="mt-3 flex flex-1 flex-col">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-amber-300">
-                        {copy.book.type}
-                      </p>
-                      <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
-                        {copy.book.title}
-                      </h3>
-                      <p className="mt-1 line-clamp-1 text-xs text-slate-400">
-                        {copy.book.author ?? "Autor não informado"}
-                      </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          {availableTypes.map((type) => {
+            const isSelected = selectedTypes.includes(type);
 
-                      <div className="mt-auto flex flex-wrap gap-2 pt-3">
-                        <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[0.65rem] font-semibold text-amber-300">
-                          {copy.book.genre}
-                        </span>
-                        <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.65rem] font-semibold text-slate-300">
-                          {copy.code}
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => toggleType(type)}
+                className={`rounded-2xl px-5 py-3 text-sm font-bold transition ${
+                  isSelected
+                    ? "bg-amber-400 text-slate-950 shadow-lg"
+                    : "border border-slate-700 bg-slate-950 text-white hover:border-amber-400/50 hover:bg-slate-800"
+                }`}
+              >
+                {type}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {categoryGroups.length === 0 ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <p className="text-slate-300">Nenhum exemplar encontrado para os filtros selecionados.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {categoryGroups.map((group) => (
+            <section key={group.name} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow md:p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-amber-300 md:text-xl">
+                    {group.name}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {group.copies.length} exemplar{group.copies.length === 1 ? "" : "es"}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollCategory(group.name, "left")}
+                    className="rounded-full border border-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-800"
+                    aria-label={`Voltar categoria ${group.name}`}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollCategory(group.name, "right")}
+                    className="rounded-full border border-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-800"
+                    aria-label={`Avançar categoria ${group.name}`}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+
+              <div
+                ref={(element) => {
+                  categoryRefs.current[group.name] = element;
+                }}
+                className="flex gap-4 overflow-x-auto scroll-smooth pb-2"
+              >
+                {group.copies.map((copy) => (
+                  <button
+                    key={copy.id}
+                    type="button"
+                    onClick={() => setSelectedCopyId(copy.id)}
+                    className="group w-40 shrink-0 text-left outline-none md:w-44"
+                  >
+                    <div className="flex h-full min-h-[22.5rem] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow transition group-hover:-translate-y-1 group-hover:border-amber-400/40 group-hover:shadow-2xl">
+                      <div className="relative">
+                        <BookCover copy={copy} size="card" />
+                        <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[0.65rem] font-semibold ${getStatusClass(copy.status)}`}>
+                          {getStatusLabel(copy.status)}
                         </span>
                       </div>
+
+                      <div className="mt-3 flex flex-1 flex-col">
+                        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-amber-300">
+                          {copy.book.type}
+                        </p>
+                        <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
+                          {copy.book.title}
+                        </h3>
+                        <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+                          {copy.book.author ?? "Autor não informado"}
+                        </p>
+
+                        <div className="mt-auto flex flex-wrap gap-2 pt-3">
+                          <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[0.65rem] font-semibold text-amber-300">
+                            {copy.book.genre}
+                          </span>
+                          <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.65rem] font-semibold text-slate-300">
+                            {copy.code}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       {selectedCopy && (
         <BookLightbox

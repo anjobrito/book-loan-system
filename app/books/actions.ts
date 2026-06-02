@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { calculateLoanDueDate } from "@/lib/exchange-dates";
 import { processLoanReturn } from "@/lib/loan-return";
+import { isValidBookGenre, normalizeBookGenre } from "@/lib/book-options";
 
 export type CreateBookState = {
   success: boolean;
@@ -62,6 +63,12 @@ function getOptionalNumber(
   return numberValue;
 }
 
+function getControlledGenre(formData: FormData): string | null {
+  const genre = normalizeBookGenre(getRequiredString(formData, "genre"));
+
+  return isValidBookGenre(genre) ? genre : null;
+}
+
 export async function createBookAction(
   _previousState: CreateBookState,
   formData: FormData
@@ -79,8 +86,15 @@ export async function createBookAction(
     const title = getRequiredString(formData, "title");
     const type = getRequiredString(formData, "type");
     const code = getRequiredString(formData, "code");
-    const genre = getRequiredString(formData, "genre");
+    const genre = getControlledGenre(formData);
     const condition = getRequiredString(formData, "condition");
+
+    if (!genre) {
+      return {
+        success: false,
+        message: "Selecione um gênero válido na lista.",
+      };
+    }
 
     const synopsis = getOptionalString(formData, "synopsis");
     const edition = getOptionalString(formData, "edition");
@@ -160,8 +174,15 @@ export async function updateBookAction(
     const title = getRequiredString(formData, "title");
     const type = getRequiredString(formData, "type");
     const code = getRequiredString(formData, "code");
-    const genre = getRequiredString(formData, "genre");
+    const genre = getControlledGenre(formData);
     const condition = getRequiredString(formData, "condition");
+
+    if (!genre) {
+      return {
+        success: false,
+        message: "Selecione um gênero válido na lista.",
+      };
+    }
 
     const synopsis = getOptionalString(formData, "synopsis");
     const edition = getOptionalString(formData, "edition");

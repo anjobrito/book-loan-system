@@ -106,12 +106,12 @@ function groupCopiesByCategory(copies: BookCatalogCopy[]): CategoryGroup[] {
 function BookCover({ copy, size }: { copy: BookCatalogCopy; size: "card" | "modal" }) {
   const coverClass =
     size === "card"
-      ? "h-52 w-full rounded-xl border border-slate-700 object-cover shadow"
+      ? "h-40 w-full rounded-xl border border-slate-700 object-cover shadow"
       : "h-80 w-full rounded-2xl border border-slate-700 object-cover shadow md:h-[28rem]";
 
   const emptyClass =
     size === "card"
-      ? "flex h-52 w-full items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950 text-center text-xs font-semibold text-slate-500"
+      ? "flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950 text-center text-xs font-semibold text-slate-500"
       : "flex h-80 w-full items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-950 text-center text-sm font-semibold text-slate-500 md:h-[28rem]";
 
   if (!copy.book.imageUrl) {
@@ -173,7 +173,7 @@ export default function BookCatalogClient({
     }
 
     const firstCard = list.firstElementChild as HTMLElement | null;
-    const cardWidth = firstCard?.offsetWidth ?? 176;
+    const cardWidth = firstCard?.offsetWidth ?? 160;
     const gap = 16;
     const fiveCards = (cardWidth + gap) * 5;
 
@@ -189,12 +189,12 @@ export default function BookCatalogClient({
 
   return (
     <>
-      <section className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow md:p-4">
+      <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-amber-300">Filtros</h2>
+            <p className="text-sm font-semibold text-amber-300">Filtros</p>
             <p className="text-xs text-slate-400">
-              Nenhum filtro marcado exibe todos os livros. Você também pode marcar vários tipos.
+              Sem filtro, todos aparecem. Selecione um ou mais tipos.
             </p>
           </div>
 
@@ -209,7 +209,7 @@ export default function BookCatalogClient({
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           {availableTypes.map((type) => {
             const isSelected = selectedTypes.includes(type);
 
@@ -218,7 +218,7 @@ export default function BookCatalogClient({
                 key={type}
                 type="button"
                 onClick={() => toggleType(type)}
-                className={`rounded-2xl px-5 py-3 text-sm font-bold transition ${
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
                   isSelected
                     ? "bg-amber-400 text-slate-950 shadow-lg"
                     : "border border-slate-700 bg-slate-950 text-white hover:border-amber-400/50 hover:bg-slate-800"
@@ -236,14 +236,14 @@ export default function BookCatalogClient({
           <p className="text-slate-300">Nenhum exemplar encontrado para os filtros selecionados.</p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {categoryGroups.map((group) => (
-            <section key={group.name} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow md:p-4">
+            <section key={group.name} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-bold text-amber-300 md:text-xl">
+                  <p className="text-base font-semibold leading-6 text-amber-300">
                     {group.name}
-                  </h2>
+                  </p>
                   <p className="text-xs text-slate-400">
                     {group.copies.length} exemplar{group.copies.length === 1 ? "" : "es"}
                   </p>
@@ -280,32 +280,32 @@ export default function BookCatalogClient({
                     key={copy.id}
                     type="button"
                     onClick={() => setSelectedCopyId(copy.id)}
-                    className="group w-40 shrink-0 text-left outline-none md:w-44"
+                    className="group w-36 shrink-0 text-left outline-none md:w-40"
                   >
-                    <div className="flex h-full min-h-[22.5rem] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow transition group-hover:-translate-y-1 group-hover:border-amber-400/40 group-hover:shadow-2xl">
+                    <div className="flex h-full min-h-[18.75rem] flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-2 shadow transition group-hover:-translate-y-1 group-hover:border-amber-400/40 group-hover:shadow-xl">
                       <div className="relative">
                         <BookCover copy={copy} size="card" />
-                        <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[0.65rem] font-semibold ${getStatusClass(copy.status)}`}>
+                        <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[0.62rem] font-semibold ${getStatusClass(copy.status)}`}>
                           {getStatusLabel(copy.status)}
                         </span>
                       </div>
 
-                      <div className="mt-3 flex flex-1 flex-col">
-                        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-amber-300">
+                      <div className="mt-2 flex flex-1 flex-col">
+                        <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-amber-300">
                           {copy.book.type}
                         </p>
-                        <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
+                        <p className="mt-1 line-clamp-2 min-h-9 text-[0.84rem] font-medium leading-[1.15rem] text-white">
                           {copy.book.title}
-                        </h3>
-                        <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+                        </p>
+                        <p className="mt-1 line-clamp-1 text-[0.72rem] text-slate-400">
                           {copy.book.author ?? "Autor não informado"}
                         </p>
 
-                        <div className="mt-auto flex flex-wrap gap-2 pt-3">
-                          <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[0.65rem] font-semibold text-amber-300">
+                        <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                          <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[0.6rem] font-semibold text-amber-300">
                             {copy.book.genre}
                           </span>
-                          <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.65rem] font-semibold text-slate-300">
+                          <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.6rem] font-semibold text-slate-300">
                             {copy.code}
                           </span>
                         </div>

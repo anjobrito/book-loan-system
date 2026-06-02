@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
+import { BOOK_GENRE_OPTIONS, BOOK_TYPE_OPTIONS } from "@/lib/book-options";
 import { updateBookAction, type UpdateBookState } from "../../actions";
 
 const initialState: UpdateBookState = {
@@ -135,9 +136,11 @@ export default function EditBookForm({ copy }: EditBookFormProps) {
             defaultValue={copy.book.type}
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
           >
-            <option value="BOOK">Livro</option>
-            <option value="COMIC">Comic</option>
-            <option value="MANGA">Mangá</option>
+            {BOOK_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -150,13 +153,32 @@ export default function EditBookForm({ copy }: EditBookFormProps) {
           helpText="Esse código precisa bater com a etiqueta ou anotação feita no exemplar físico."
         />
 
-        <FormField
-          label="Gênero"
-          name="genre"
-          required
-          placeholder="Ex: Terror, Romance, Aventura"
-          defaultValue={copy.book.genre}
-        />
+        <div>
+          <label htmlFor="genre" className="mb-2 block text-sm font-medium text-slate-200">
+            Gênero <span className="text-amber-300">*</span>
+          </label>
+          <select
+            id="genre"
+            name="genre"
+            required
+            defaultValue={copy.book.genre}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+          >
+            <option value="" disabled>
+              Selecione um gênero
+            </option>
+            {BOOK_GENRE_OPTIONS.map((genre) => (
+              <option key={genre} value={genre}>
+                {genre}
+              </option>
+            ))}
+          </select>
+          {!BOOK_GENRE_OPTIONS.includes(copy.book.genre as (typeof BOOK_GENRE_OPTIONS)[number]) && (
+            <p className="mt-2 text-xs leading-5 text-amber-300">
+              O gênero atual deste registro é "{copy.book.genre}" e precisa ser normalizado para uma das opções acima antes de salvar.
+            </p>
+          )}
+        </div>
 
         <FormField
           label="Autor"

@@ -78,8 +78,8 @@ function getStatusClass(status: string) {
     : "bg-red-500/20 text-red-300";
 }
 
-function getAvailableTypes(copies: BookCatalogCopy[]) {
-  return Array.from(new Set(copies.map((copy) => copy.book.type)))
+function getAvailableGenres(copies: BookCatalogCopy[]) {
+  return Array.from(new Set(copies.map((copy) => copy.book.genre)))
     .filter(Boolean)
     .sort((first, second) => first.localeCompare(second, "pt-BR"));
 }
@@ -88,7 +88,7 @@ function groupCopiesByCategory(copies: BookCatalogCopy[]): CategoryGroup[] {
   const groups = new Map<string, BookCatalogCopy[]>();
 
   copies.forEach((copy) => {
-    const category = copy.book.genre || copy.book.type || "Outros";
+    const category = copy.book.genre || "Outros";
     const currentGroup = groups.get(category) ?? [];
 
     currentGroup.push(copy);
@@ -133,17 +133,17 @@ export default function BookCatalogClient({
   currentUser,
 }: BookCatalogClientProps) {
   const [selectedCopyId, setSelectedCopyId] = useState<string | null>(null);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const availableTypes = useMemo(() => getAvailableTypes(copies), [copies]);
+  const availableGenres = useMemo(() => getAvailableGenres(copies), [copies]);
   const filteredCopies = useMemo(() => {
-    if (selectedTypes.length === 0) {
+    if (selectedGenres.length === 0) {
       return copies;
     }
 
-    return copies.filter((copy) => selectedTypes.includes(copy.book.type));
-  }, [copies, selectedTypes]);
+    return copies.filter((copy) => selectedGenres.includes(copy.book.genre));
+  }, [copies, selectedGenres]);
   const categoryGroups = useMemo(
     () => groupCopiesByCategory(filteredCopies),
     [filteredCopies]
@@ -153,16 +153,16 @@ export default function BookCatalogClient({
     [copies, selectedCopyId]
   );
 
-  function toggleType(type: string) {
-    setSelectedTypes((currentTypes) =>
-      currentTypes.includes(type)
-        ? currentTypes.filter((currentType) => currentType !== type)
-        : [...currentTypes, type]
+  function toggleGenre(genre: string) {
+    setSelectedGenres((currentGenres) =>
+      currentGenres.includes(genre)
+        ? currentGenres.filter((currentGenre) => currentGenre !== genre)
+        : [...currentGenres, genre]
     );
   }
 
   function clearFilters() {
-    setSelectedTypes([]);
+    setSelectedGenres([]);
   }
 
   function scrollCategory(category: string, direction: "left" | "right") {
@@ -192,13 +192,13 @@ export default function BookCatalogClient({
       <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-amber-300">Filtros</p>
+            <p className="text-sm font-semibold text-amber-300">Filtros por gênero</p>
             <p className="text-xs text-slate-400">
-              Sem filtro, todos aparecem. Selecione um ou mais tipos.
+              Sem filtro, todos aparecem. Selecione um ou mais gêneros.
             </p>
           </div>
 
-          {selectedTypes.length > 0 && (
+          {selectedGenres.length > 0 && (
             <button
               type="button"
               onClick={clearFilters}
@@ -210,21 +210,21 @@ export default function BookCatalogClient({
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {availableTypes.map((type) => {
-            const isSelected = selectedTypes.includes(type);
+          {availableGenres.map((genre) => {
+            const isSelected = selectedGenres.includes(genre);
 
             return (
               <button
-                key={type}
+                key={genre}
                 type="button"
-                onClick={() => toggleType(type)}
+                onClick={() => toggleGenre(genre)}
                 className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
                   isSelected
                     ? "bg-amber-400 text-slate-950 shadow-lg"
                     : "border border-slate-700 bg-slate-950 text-white hover:border-amber-400/50 hover:bg-slate-800"
                 }`}
               >
-                {type}
+                {genre}
               </button>
             );
           })}

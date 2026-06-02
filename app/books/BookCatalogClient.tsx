@@ -63,6 +63,11 @@ type BookCatalogClientProps = {
   currentUser: BookCatalogUser | null;
 };
 
+type CategoryGroup = {
+  name: string;
+  copies: BookCatalogCopy[];
+};
+
 function getStatusLabel(status: string) {
   return status === "AVAILABLE" ? "Disponível" : "Emprestado";
 }
@@ -73,15 +78,34 @@ function getStatusClass(status: string) {
     : "bg-red-500/20 text-red-300";
 }
 
+function groupCopiesByCategory(copies: BookCatalogCopy[]): CategoryGroup[] {
+  const groups = new Map<string, BookCatalogCopy[]>();
+
+  copies.forEach((copy) => {
+    const category = copy.book.genre || copy.book.type || "Outros";
+    const currentGroup = groups.get(category) ?? [];
+
+    currentGroup.push(copy);
+    groups.set(category, currentGroup);
+  });
+
+  return Array.from(groups.entries())
+    .map(([name, groupCopies]) => ({
+      name,
+      copies: groupCopies,
+    }))
+    .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
+}
+
 function BookCover({ copy, size }: { copy: BookCatalogCopy; size: "card" | "modal" }) {
   const coverClass =
     size === "card"
-      ? "h-72 w-full rounded-2xl border border-slate-700 object-cover shadow"
+      ? "h-52 w-full rounded-xl border border-slate-700 object-cover shadow"
       : "h-80 w-full rounded-2xl border border-slate-700 object-cover shadow md:h-[28rem]";
 
   const emptyClass =
     size === "card"
-      ? "flex h-72 w-full items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-950 text-center text-sm font-semibold text-slate-500"
+      ? "flex h-52 w-full items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-950 text-center text-xs font-semibold text-slate-500"
       : "flex h-80 w-full items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-950 text-center text-sm font-semibold text-slate-500 md:h-[28rem]";
 
   if (!copy.book.imageUrl) {
@@ -103,16 +127,28 @@ export default function BookCatalogClient({
   currentUser,
 }: BookCatalogClientProps) {
   const [selectedCopyId, setSelectedCopyId] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  const categoryGroups = useMemo(() => groupCopiesByCategory(copies), [copies]);
   const selectedCopy = useMemo(
     () => copies.find((copy) => copy.id === selectedCopyId) ?? null,
     [copies, selectedCopyId]
   );
 
-  function scrollCatalog(direction: "left" | "right") {
-    listRef.current?.scrollBy({
-      left: direction === "left" ? -520 : 520,
+  function scrollCategory(category: string, direction: "left" | "right") {
+    const list = categoryRefs.current[category];
+
+    if (!list) {
+      return;
+    }
+
+    const firstCard = list.firstElementChild as HTMLElement | null;
+    const cardWidth = firstCard?.offsetWidth ?? 176;
+    const gap = 16;
+    const fiveCards = (cardWidth + gap) * 5;
+
+    list.scrollBy({
+      left: direction === "left" ? -fiveCards : fiveCards,
       behavior: "smooth",
     });
   }
@@ -123,76 +159,85 @@ export default function BookCatalogClient({
 
   return (
     <>
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300 md:flex-row md:items-center md:justify-between">
-        <p>
-          <span className="font-semibold text-amber-300">{copies.length}</span>{" "}
-          exemplares cadastrados. Clique em uma capa para ver detalhes, solicitar empréstimo ou reservar.
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => scrollCatalog("left")}
-            className="rounded-full border border-slate-700 px-4 py-2 font-semibold text-white hover:bg-slate-800"
-            aria-label="Voltar catálogo"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollCatalog("right")}
-            className="rounded-full border border-slate-700 px-4 py-2 font-semibold text-white hover:bg-slate-800"
-            aria-label="Avançar catálogo"
-          >
-            ›
-          </button>
-        </div>
-      </div>
-
-      <div
-        ref={listRef}
-        className="flex gap-5 overflow-x-auto scroll-smooth pb-4"
-      >
-        {copies.map((copy) => (
-          <button
-            key={copy.id}
-            type="button"
-            onClick={() => setSelectedCopyId(copy.id)}
-            className="group w-56 shrink-0 text-left outline-none md:w-64"
-          >
-            <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-3 shadow transition group-hover:-translate-y-1 group-hover:border-amber-400/40 group-hover:shadow-2xl">
-              <div className="relative">
-                <BookCover copy={copy} size="card" />
-                <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(copy.status)}`}>
-                  {getStatusLabel(copy.status)}
-                </span>
+      <div className="space-y-5">
+        {categoryGroups.map((group) => (
+          <section key={group.name} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 shadow md:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-amber-300 md:text-xl">
+                  {group.name}
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {group.copies.length} exemplar{group.copies.length === 1 ? "" : "es"}
+                </p>
               </div>
 
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
-                  {copy.book.type}
-                </p>
-                <h2 className="mt-2 line-clamp-2 min-h-14 text-lg font-semibold text-white">
-                  {copy.book.title}
-                </h2>
-                <p className="mt-2 text-sm text-slate-400">
-                  {copy.book.author ?? "Autor não informado"}
-                </p>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                    {copy.book.genre}
-                  </span>
-                  <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-slate-300">
-                    {copy.code}
-                  </span>
-                </div>
-
-                <p className="mt-3 text-xs text-slate-500">
-                  Dono: {copy.owner.name}
-                </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollCategory(group.name, "left")}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-800"
+                  aria-label={`Voltar categoria ${group.name}`}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollCategory(group.name, "right")}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-800"
+                  aria-label={`Avançar categoria ${group.name}`}
+                >
+                  ›
+                </button>
               </div>
             </div>
-          </button>
+
+            <div
+              ref={(element) => {
+                categoryRefs.current[group.name] = element;
+              }}
+              className="flex gap-4 overflow-x-auto scroll-smooth pb-2"
+            >
+              {group.copies.map((copy) => (
+                <button
+                  key={copy.id}
+                  type="button"
+                  onClick={() => setSelectedCopyId(copy.id)}
+                  className="group w-40 shrink-0 text-left outline-none md:w-44"
+                >
+                  <div className="flex h-full min-h-[22.5rem] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow transition group-hover:-translate-y-1 group-hover:border-amber-400/40 group-hover:shadow-2xl">
+                    <div className="relative">
+                      <BookCover copy={copy} size="card" />
+                      <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[0.65rem] font-semibold ${getStatusClass(copy.status)}`}>
+                        {getStatusLabel(copy.status)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-1 flex-col">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-amber-300">
+                        {copy.book.type}
+                      </p>
+                      <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white">
+                        {copy.book.title}
+                      </h3>
+                      <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+                        {copy.book.author ?? "Autor não informado"}
+                      </p>
+
+                      <div className="mt-auto flex flex-wrap gap-2 pt-3">
+                        <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[0.65rem] font-semibold text-amber-300">
+                          {copy.book.genre}
+                        </span>
+                        <span className="rounded-full bg-slate-950 px-2 py-1 text-[0.65rem] font-semibold text-slate-300">
+                          {copy.code}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
 
@@ -230,10 +275,10 @@ function BookLightbox({
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-950/80 px-4 py-6 backdrop-blur-sm">
       <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-900/95 px-5 py-4 backdrop-blur">
-          <div>
-            <p className="text-sm font-semibold text-amber-300">Detalhes do exemplar</p>
-            <h2 className="text-xl font-bold text-white">{copy.book.title}</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-900/95 px-5 py-3 backdrop-blur">
+          <div className="min-w-0 pr-4">
+            <p className="text-xs font-semibold text-amber-300">Detalhes do exemplar</p>
+            <h2 className="truncate text-lg font-bold text-white md:text-xl">{copy.book.title}</h2>
           </div>
           <button
             type="button"
@@ -245,7 +290,7 @@ function BookLightbox({
           </button>
         </div>
 
-        <div className="grid gap-6 p-5 md:grid-cols-[18rem_1fr] md:p-6">
+        <div className="grid gap-5 p-5 md:grid-cols-[16rem_1fr] md:p-5">
           <div>
             <BookCover copy={copy} size="modal" />
           </div>
@@ -254,7 +299,7 @@ function BookLightbox({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-amber-300">{copy.book.type}</p>
-                <h3 className="mt-2 text-3xl font-semibold text-white">{copy.book.title}</h3>
+                <h3 className="mt-1 text-2xl font-semibold leading-tight text-white md:text-3xl">{copy.book.title}</h3>
               </div>
               <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(copy.status)}`}>
                 {getStatusLabel(copy.status)}
@@ -278,37 +323,35 @@ function BookLightbox({
               {copy.book.synopsis ?? "Sem sinopse cadastrada."}
             </p>
 
-            <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950">
-              <div className="px-4 py-3 text-sm font-semibold text-amber-300">
+            <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950">
+              <div className="px-4 py-2 text-sm font-semibold text-amber-300">
                 Informações completas
               </div>
-              <div className="space-y-2 border-t border-slate-800 px-4 py-4 text-sm text-slate-300">
-                <p>Dono: {copy.owner.name}</p>
+              <div className="grid gap-2 border-t border-slate-800 px-4 py-3 text-sm text-slate-300 md:grid-cols-2">
                 <p>Autor: {copy.book.author ?? "Não informado"}</p>
                 <p>Gênero: {copy.book.genre}</p>
                 <p>Editora: {copy.book.publisher ?? "Não informada"}</p>
-                <p>Ano de publicação: {copy.book.publicationYear ?? "Não informado"}</p>
+                <p>Ano: {copy.book.publicationYear ?? "Não informado"}</p>
                 <p>Edição: {copy.book.edition ?? "Não informada"}</p>
-                <p>Código do exemplar: {copy.code}</p>
                 <p>Estado: {copy.condition ?? "Não informado"}</p>
                 {activeLoan && (
-                  <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-200">
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-200 md:col-span-2">
                     <p>Com: {activeLoan.borrower.name}</p>
                     <p>Devolver até: {activeLoan.dueDateFormatted}</p>
                   </div>
                 )}
                 {hasActiveReservations && (
-                  <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 md:col-span-2">
                     <p>Reservas ativas: {copy.reservations.length}</p>
                     <p>Primeiro da fila: {copy.reservations[0].user.name}</p>
                   </div>
                 )}
-                {isOwner && <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900 p-3 text-slate-300">Este exemplar pertence a você.</div>}
-                {isBorrower && <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">Este exemplar está emprestado para você.</div>}
+                {isOwner && <div className="rounded-xl border border-slate-700 bg-slate-900 p-3 text-slate-300 md:col-span-2">Este exemplar pertence a você.</div>}
+                {isBorrower && <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 md:col-span-2">Este exemplar está emprestado para você.</div>}
               </div>
             </div>
 
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {canEdit && (
                 <Link
                   href={`/books/${copy.id}/edit`}

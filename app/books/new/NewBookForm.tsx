@@ -3,6 +3,12 @@
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
+import {
+  BOOK_GENRE_OPTIONS,
+  BOOK_TYPE_OPTIONS,
+  isValidBookGenre,
+  normalizeBookGenre,
+} from "@/lib/book-options";
 import { createBookAction, type CreateBookState } from "../actions";
 
 const initialState: CreateBookState = {
@@ -112,7 +118,10 @@ export default function NewBookForm() {
     if (data.publisher) setPublisher(data.publisher);
     if (data.publicationYear) setPublicationYear(String(data.publicationYear));
     if (data.synopsis) setSynopsis(data.synopsis);
-    if (data.genre) setGenre(data.genre);
+    if (data.genre) {
+      const normalizedGenre = normalizeBookGenre(data.genre);
+      setGenre(isValidBookGenre(normalizedGenre) ? normalizedGenre : "Outros");
+    }
     if (data.imageUrl) setImageUrl(data.imageUrl);
 
     setLookupMessage(
@@ -285,9 +294,11 @@ export default function NewBookForm() {
             onChange={(event) => setType(event.target.value)}
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
           >
-            <option value="BOOK">Livro</option>
-            <option value="COMIC">Comic</option>
-            <option value="MANGA">Mangá</option>
+            {BOOK_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -299,14 +310,32 @@ export default function NewBookForm() {
           helpText="Pegue esse código do próprio livro ou crie um novo código e marque no exemplar físico. Ele ajuda a identificar o livro correto no dia da troca."
         />
 
-        <FormField
-          label="Gênero"
-          name="genre"
-          required
-          placeholder="Ex: Terror, Romance, Aventura"
-          value={genre}
-          onChange={setGenre}
-        />
+        <div>
+          <label
+            htmlFor="genre"
+            className="mb-2 block text-sm font-medium text-slate-200"
+          >
+            Gênero <span className="text-amber-300">*</span>
+          </label>
+
+          <select
+            id="genre"
+            name="genre"
+            required
+            value={genre}
+            onChange={(event) => setGenre(event.target.value)}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+          >
+            <option value="" disabled>
+              Selecione um gênero
+            </option>
+            {BOOK_GENRE_OPTIONS.map((genreOption) => (
+              <option key={genreOption} value={genreOption}>
+                {genreOption}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <FormField
           label="Autor"

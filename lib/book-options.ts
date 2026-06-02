@@ -10,6 +10,7 @@ export const BOOK_GENRE_OPTIONS = [
   "Biografia",
   "Ciência",
   "Comédia",
+  "Crítica literária",
   "Drama",
   "Educação",
   "Fantasia",
@@ -22,8 +23,10 @@ export const BOOK_GENRE_OPTIONS = [
   "Poesia",
   "Policial",
   "Programação",
+  "Psicologia",
   "Religião",
   "Romance",
+  "Social classes",
   "Suspense",
   "Terror",
   "Outros",
@@ -32,15 +35,28 @@ export const BOOK_GENRE_OPTIONS = [
 export type BookTypeOption = (typeof BOOK_TYPE_OPTIONS)[number]["value"];
 export type BookGenreOption = (typeof BOOK_GENRE_OPTIONS)[number];
 
+function normalizeComparisonValue(value: string) {
+  return value
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
 export function isValidBookGenre(genre: string) {
-  return BOOK_GENRE_OPTIONS.includes(genre as BookGenreOption);
+  const normalizedGenre = normalizeComparisonValue(genre);
+
+  return BOOK_GENRE_OPTIONS.some(
+    (option) => normalizeComparisonValue(option) === normalizedGenre
+  );
 }
 
 export function normalizeBookGenre(genre: string) {
   const trimmedGenre = genre.trim();
-  const normalizedGenre = BOOK_GENRE_OPTIONS.find(
-    (option) => option.toLocaleLowerCase("pt-BR") === trimmedGenre.toLocaleLowerCase("pt-BR")
+  const normalizedGenre = normalizeComparisonValue(trimmedGenre);
+  const matchingGenre = BOOK_GENRE_OPTIONS.find(
+    (option) => normalizeComparisonValue(option) === normalizedGenre
   );
 
-  return normalizedGenre ?? trimmedGenre;
+  return matchingGenre ?? trimmedGenre;
 }

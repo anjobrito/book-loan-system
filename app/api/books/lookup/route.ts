@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { normalizeBookGenre, isValidBookGenre } from "@/lib/book-options";
 
+type BookLookupSource =
+  | "GOOGLE_BOOKS"
+  | "OPEN_LIBRARY"
+  | "WIKIPEDIA"
+  | "WEB_SEARCH";
+
 type BookLookupResult = {
   found: boolean;
-  source?: "GOOGLE_BOOKS" | "OPEN_LIBRARY";
+  source?: BookLookupSource;
   title?: string;
   author?: string;
   publisher?: string;
@@ -31,6 +37,25 @@ type GoogleVolumeInfo = {
     type?: string;
     identifier?: string;
   }>;
+};
+
+type GoogleCustomSearchItem = {
+  title?: string;
+  snippet?: string;
+  link?: string;
+  pagemap?: {
+    metatags?: Array<Record<string, string>>;
+    book?: Array<Record<string, string>>;
+    product?: Array<Record<string, string>>;
+  };
+};
+
+type WikipediaSummary = {
+  title?: string;
+  extract?: string;
+  thumbnail?: {
+    source?: string;
+  };
 };
 
 function sanitizeIsbn(value: string) {
@@ -141,6 +166,31 @@ function getGoogleQueriesForIsbn(isbn: string) {
   return Array.from(queries);
 }
 
+function mergeLookupResults(
+  base: BookLookupResult | null,
+  enrichment: BookLookupResult | null
+): BookLookupResult | null {
+  if (!base) {
+    return enrichment;
+  }
+
+  if (!enrichment) {
+    return base;
+  }
+
+  return {
+    ...base,
+    title: base.title ?? enrichment.title,
+    author: base.author ?? enrichment.author,
+    publisher: base.publisher ?? enrichment.publisher,
+    publicationYear: base.publicationYear ?? enrichment.publicationYear,
+    synopsis: base.synopsis ?? enrichment.synopsis,
+    genre: base.genre ?? enrichment.genre,
+    edition: base.edition ?? enrichment.edition,
+    imageUrl: base.imageUrl ?? enrichment.imageUrl,
+  };
+}
+
 function mapGoogleVolume(volume: GoogleVolumeInfo): BookLookupResult | null {
   if (!volume?.title) {
     return null;
@@ -225,17 +275,6 @@ async function lookupGoogleBooksByQuery(
 
 async function lookupGoogleBooks(isbn: string): Promise<BookLookupResult | null> {
   const queries = getGoogleQueriesForIsbn(isbn);
-
-  for (const query of queries) {
-    const result = await lookupGoogleBooksByQuery(query, {
-      isbn,
-      langRestrict: "pt",
-    });
-
-    if (result?.title) {
-      return result;
-    }
-  }
 
   for (const query of queries) {
     const result = await lookupGoogleBooksByQuery(query, {
@@ -397,7 +436,7 @@ async function lookupOpenLibrarySearch(isbn: string): Promise<BookLookupResult |
 
 async function lookupOpenLibraryGeneralSearch(query: string): Promise<BookLookupResult | null> {
   const response = await fetch(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3&language=por`,
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3`,
     {
       next: {
         revalidate: 60 * 60 * 24,
@@ -450,16 +489,184 @@ async function lookupOpenLibrary(isbn: string): Promise<BookLookupResult | null>
   return null;
 }
 
-async function lookupByTitleOrAuthor(query: string): Promise<BookLookupResult | null> {
-  const googleResult =
-    (await lookupGoogleBooksByQuery(query, { langRestrict: "pt" })) ??
-    (await lookupGoogleBooksByQuery(query));
-
-  if (googleResult?.title) {
-    return googleResult;
+function cleanupWebSearchTitle(value?: string) {
+  if (!value) {
+    return undefined;
   }
 
-  return lookupOpenLibraryGeneralSearch(query);
+  const cleanedTitle = value
+    .replace(/\s*[-|–—:].*$/g, "")
+    .replace(/^Livro\s+/i, "")
+    .replace(/^Comprar\s+/i, "")
+    .replace(/^ISBN\s+/i, "")
+    .replace(/[“”"]/g, "")
+    .trim();
+
+  return cleanedTitle.length >= 3 ? cleanedTitle : undefined;
+}
+
+function mapWebSearchItemToLookup(item: GoogleCustomSearchItem): BookLookupResult | null {
+  const metatag = item.pagemap?.metatags?.[0] ?? {};
+  const book = item.pagemap?.book?.[0] ?? {};
+  const product = item.pagemap?.product?.[0] ?? {};
+  const title =
+    cleanupWebSearchTitle(book.name) ??
+    cleanupWebSearchTitle(product.name) ??
+    cleanupWebSearchTitle(metatag["og:title"]) ??
+    cleanupWebSearchTitle(item.title);
+
+  if (!title) {
+    return null;
+  }
+
+  return {
+    found: true,
+    source: "WEB_SEARCH",
+    title,
+    author: book.author,
+    publisher: book.publisher,
+    synopsis: metatag["og:description"] ?? item.snippet,
+    imageUrl: normalizeHttpsImageUrl(metatag["og:image"]),
+  };
+}
+
+async function lookupWebSearch(query: string): Promise<BookLookupResult | null> {
+  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+
+  if (!apiKey || !searchEngineId) {
+    return null;
+  }
+
+  const url = new URL("https://www.googleapis.com/customsearch/v1");
+  url.searchParams.set("key", apiKey);
+  url.searchParams.set("cx", searchEngineId);
+  url.searchParams.set("q", query);
+  url.searchParams.set("num", "5");
+  url.searchParams.set("hl", "pt-BR");
+  url.searchParams.set("gl", "br");
+
+  const response = await fetch(url.toString(), {
+    next: {
+      revalidate: 60 * 60 * 24,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Erro na busca web de livros:", await response.text());
+    return null;
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  for (const item of items) {
+    const result = mapWebSearchItemToLookup(item);
+
+    if (result?.title) {
+      return result;
+    }
+  }
+
+  return null;
+}
+
+async function lookupWikipediaSummary(title?: string): Promise<BookLookupResult | null> {
+  if (!title || title.trim().length < 3) {
+    return null;
+  }
+
+  const languages = ["pt", "en", "es", "fr"];
+
+  for (const language of languages) {
+    const response = await fetch(
+      `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+      {
+        next: {
+          revalidate: 60 * 60 * 24,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      continue;
+    }
+
+    const data = (await response.json()) as WikipediaSummary;
+
+    if (!data.title || !data.extract) {
+      continue;
+    }
+
+    return {
+      found: true,
+      source: "WIKIPEDIA",
+      title: data.title,
+      synopsis: data.extract,
+      genre: "Outros",
+      imageUrl: normalizeHttpsImageUrl(data.thumbnail?.source),
+    };
+  }
+
+  return null;
+}
+
+async function enrichWithWikipedia(result: BookLookupResult | null) {
+  if (!result?.title || result.synopsis) {
+    return result;
+  }
+
+  const wikipediaResult = await lookupWikipediaSummary(result.title);
+
+  return mergeLookupResults(result, wikipediaResult);
+}
+
+async function lookupByTitleOrAuthor(query: string): Promise<BookLookupResult | null> {
+  const googleResult = await lookupGoogleBooksByQuery(query);
+
+  if (googleResult?.title) {
+    return enrichWithWikipedia(googleResult);
+  }
+
+  const openLibraryResult = await lookupOpenLibraryGeneralSearch(query);
+
+  if (openLibraryResult?.title) {
+    return enrichWithWikipedia(openLibraryResult);
+  }
+
+  const wikipediaResult = await lookupWikipediaSummary(query);
+
+  if (wikipediaResult?.title) {
+    return wikipediaResult;
+  }
+
+  return null;
+}
+
+async function lookupByIsbn(isbn: string) {
+  const googleResult = await lookupGoogleBooks(isbn);
+
+  if (googleResult?.title) {
+    return enrichWithWikipedia(googleResult);
+  }
+
+  const openLibraryResult = await lookupOpenLibrary(isbn);
+
+  if (openLibraryResult?.title) {
+    return enrichWithWikipedia(openLibraryResult);
+  }
+
+  const webResult =
+    (await lookupWebSearch(`ISBN ${isbn} livro`)) ??
+    (await lookupWebSearch(`ISBN ${formatIsbn13(isbn)} livro`)) ??
+    (await lookupWebSearch(`"${isbn}" livro`));
+
+  if (webResult?.title) {
+    const enrichedByTitle = await lookupByTitleOrAuthor(webResult.title);
+    return enrichWithWikipedia(mergeLookupResults(webResult, enrichedByTitle));
+  }
+
+  return null;
 }
 
 export async function GET(request: Request) {
@@ -479,16 +686,10 @@ export async function GET(request: Request) {
 
   try {
     if (isbn.length >= 10) {
-      const googleResult = await lookupGoogleBooks(isbn);
+      const isbnResult = await lookupByIsbn(isbn);
 
-      if (googleResult?.title) {
-        return NextResponse.json(googleResult);
-      }
-
-      const openLibraryResult = await lookupOpenLibrary(isbn);
-
-      if (openLibraryResult?.title) {
-        return NextResponse.json(openLibraryResult);
+      if (isbnResult?.title) {
+        return NextResponse.json(isbnResult);
       }
     }
 
@@ -503,7 +704,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       found: false,
       message:
-        "Nenhum livro encontrado nas bases Google Books/Open Library. Confira o ISBN ou tente buscar por título e autor.",
+        "Nenhum livro encontrado nas bases disponíveis. Confira o ISBN ou tente buscar por título e autor.",
     });
   } catch (error) {
     console.error("Erro ao buscar livro:", { isbn, query, error });

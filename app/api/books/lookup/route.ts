@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizeBookGenre, isValidBookGenre } from "@/lib/book-options";
+import { isValidBookGenre, normalizeBookGenre } from "@/lib/book-options";
 
 type BookLookupSource =
   | "GOOGLE_BOOKS"
@@ -42,7 +42,6 @@ type GoogleVolumeInfo = {
 type GoogleCustomSearchItem = {
   title?: string;
   snippet?: string;
-  link?: string;
   pagemap?: {
     metatags?: Array<Record<string, string>>;
     book?: Array<Record<string, string>>;
@@ -57,6 +56,13 @@ type WikipediaSummary = {
     source?: string;
   };
 };
+
+class ProviderQuotaError extends Error {
+  constructor(provider: string) {
+    super(`${provider} quota exceeded`);
+    this.name = "ProviderQuotaError";
+  }
+}
 
 function sanitizeIsbn(value: string) {
   return value.replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -88,11 +94,7 @@ function normalizeHttpsImageUrl(value?: string) {
     return undefined;
   }
 
-  if (value.startsWith("http://")) {
-    return value.replace("http://", "https://");
-  }
-
-  return value;
+  return value.startsWith("http://") ? value.replace("http://", "https://") : value;
 }
 
 function normalizeLookupGenre(value?: string) {
@@ -129,8 +131,7 @@ function convertIsbn13ToIsbn10(isbn: string) {
   const total = core
     .split("")
     .reduce((sum, digit, index) => sum + Number(digit) * (10 - index), 0);
-  const remainder = total % 11;
-  const checkValue = (11 - remainder) % 11;
+  const checkValue = (11 - (total % 11)) % 11;
   const checkDigit = checkValue === 10 ? "X" : String(checkValue);
 
   return `${core}${checkDigit}`;
@@ -151,10 +152,9 @@ function getIsbnCandidates(isbn: string) {
 }
 
 function getGoogleQueriesForIsbn(isbn: string) {
-  const candidates = getIsbnCandidates(isbn);
   const queries = new Set<string>();
 
-  candidates.forEach((candidate) => {
+  getIsbnCandidates(isbn).forEach((candidate) => {
     queries.add(`isbn:${candidate}`);
     queries.add(candidate);
     queries.add(`ISBN ${candidate}`);
@@ -173,6 +173,10 @@ async function safeLookupStep(
   try {
     return await lookup();
   } catch (error) {
+    if (error instanceof ProviderQuotaError) {
+      throw error;
+    }
+
     console.error(`Erro na etapa de busca de livro: ${label}`, error);
     return null;
   }
@@ -263,7 +267,13 @@ async function lookupGoogleBooksByQuery(
   });
 
   if (!response.ok) {
-    console.error("Google Books retornou erro:", response.status, await response.text());
+    const errorText = await response.text();
+    console.error("Google Books retornou erro:", response.status, errorText);
+
+    if (response.status === 429 || errorText.includes("quota_limit_value")) {
+      throw new ProviderQuotaError("Google Books");
+    }
+
     return null;
   }
 
@@ -286,14 +296,25 @@ async function lookupGoogleBooks(isbn: string): Promise<BookLookupResult | null>
   const queries = getGoogleQueriesForIsbn(isbn);
 
   for (const query of queries) {
-    const result = await safeLookupStep(`Google Books: ${query}`, () =>
-      lookupGoogleBooksByQuery(query, {
-        isbn,
-      })
-    );
+    try {
+      const result = await safeLookupStep(`Google Books: ${query}`, () =>
+        lookupGoogleBooksByQuery(query, {
+          isbn,
+        })
+      );
 
-    if (result?.title) {
-      return result;
+      if (result?.title) {
+        return result;
+      }
+    } catch (error) {
+      if (error instanceof ProviderQuotaError) {
+        console.warn(
+          "Google Books ignorado nesta busca porque a quota diária do projeto está zerada ou esgotada."
+        );
+        return null;
+      }
+
+      throw error;
     }
   }
 

@@ -166,6 +166,18 @@ function getGoogleQueriesForIsbn(isbn: string) {
   return Array.from(queries);
 }
 
+async function safeLookupStep(
+  label: string,
+  lookup: () => Promise<BookLookupResult | null>
+) {
+  try {
+    return await lookup();
+  } catch (error) {
+    console.error(`Erro na etapa de busca de livro: ${label}`, error);
+    return null;
+  }
+}
+
 function mergeLookupResults(
   base: BookLookupResult | null,
   enrichment: BookLookupResult | null
@@ -237,16 +249,12 @@ function scoreGoogleVolume(volume: GoogleVolumeInfo, isbn?: string) {
 
 async function lookupGoogleBooksByQuery(
   query: string,
-  options?: { isbn?: string; langRestrict?: string }
+  options?: { isbn?: string }
 ): Promise<BookLookupResult | null> {
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
   url.searchParams.set("q", query);
   url.searchParams.set("country", "BR");
   url.searchParams.set("maxResults", "10");
-
-  if (options?.langRestrict) {
-    url.searchParams.set("langRestrict", options.langRestrict);
-  }
 
   const response = await fetch(url.toString(), {
     next: {
@@ -255,6 +263,7 @@ async function lookupGoogleBooksByQuery(
   });
 
   if (!response.ok) {
+    console.error("Google Books retornou erro:", response.status, await response.text());
     return null;
   }
 
@@ -277,9 +286,11 @@ async function lookupGoogleBooks(isbn: string): Promise<BookLookupResult | null>
   const queries = getGoogleQueriesForIsbn(isbn);
 
   for (const query of queries) {
-    const result = await lookupGoogleBooksByQuery(query, {
-      isbn,
-    });
+    const result = await safeLookupStep(`Google Books: ${query}`, () =>
+      lookupGoogleBooksByQuery(query, {
+        isbn,
+      })
+    );
 
     if (result?.title) {
       return result;
@@ -475,11 +486,21 @@ async function lookupOpenLibrary(isbn: string): Promise<BookLookupResult | null>
 
   for (const candidate of candidates) {
     const result =
-      (await lookupOpenLibraryIsbnEndpoint(candidate)) ??
-      (await lookupOpenLibraryBooksApi(candidate)) ??
-      (await lookupOpenLibrarySearch(candidate)) ??
-      (await lookupOpenLibraryGeneralSearch(`ISBN ${candidate}`)) ??
-      (await lookupOpenLibraryGeneralSearch(`${candidate} livro`));
+      (await safeLookupStep(`Open Library ISBN endpoint: ${candidate}`, () =>
+        lookupOpenLibraryIsbnEndpoint(candidate)
+      )) ??
+      (await safeLookupStep(`Open Library Books API: ${candidate}`, () =>
+        lookupOpenLibraryBooksApi(candidate)
+      )) ??
+      (await safeLookupStep(`Open Library ISBN search: ${candidate}`, () =>
+        lookupOpenLibrarySearch(candidate)
+      )) ??
+      (await safeLookupStep(`Open Library text search ISBN ${candidate}`, () =>
+        lookupOpenLibraryGeneralSearch(`ISBN ${candidate}`)
+      )) ??
+      (await safeLookupStep(`Open Library text search livro ${candidate}`, () =>
+        lookupOpenLibraryGeneralSearch(`${candidate} livro`)
+      ));
 
     if (result?.title) {
       return result;
@@ -535,6 +556,9 @@ async function lookupWebSearch(query: string): Promise<BookLookupResult | null> 
   const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
   if (!apiKey || !searchEngineId) {
+    console.warn(
+      "Busca web de livros ignorada: GOOGLE_SEARCH_API_KEY ou GOOGLE_SEARCH_ENGINE_ID não configurado."
+    );
     return null;
   }
 
@@ -553,7 +577,7 @@ async function lookupWebSearch(query: string): Promise<BookLookupResult | null> 
   });
 
   if (!response.ok) {
-    console.error("Erro na busca web de livros:", await response.text());
+    console.error("Google Custom Search retornou erro:", response.status, await response.text());
     return null;
   }
 
@@ -579,33 +603,39 @@ async function lookupWikipediaSummary(title?: string): Promise<BookLookupResult 
   const languages = ["pt", "en", "es", "fr"];
 
   for (const language of languages) {
-    const response = await fetch(
-      `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
-      {
-        next: {
-          revalidate: 60 * 60 * 24,
-        },
+    const result = await safeLookupStep(`Wikipedia ${language}: ${title}`, async () => {
+      const response = await fetch(
+        `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+        {
+          next: {
+            revalidate: 60 * 60 * 24,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        return null;
       }
-    );
 
-    if (!response.ok) {
-      continue;
+      const data = (await response.json()) as WikipediaSummary;
+
+      if (!data.title || !data.extract) {
+        return null;
+      }
+
+      return {
+        found: true,
+        source: "WIKIPEDIA",
+        title: data.title,
+        synopsis: data.extract,
+        genre: "Outros",
+        imageUrl: normalizeHttpsImageUrl(data.thumbnail?.source),
+      };
+    });
+
+    if (result?.title) {
+      return result;
     }
-
-    const data = (await response.json()) as WikipediaSummary;
-
-    if (!data.title || !data.extract) {
-      continue;
-    }
-
-    return {
-      found: true,
-      source: "WIKIPEDIA",
-      title: data.title,
-      synopsis: data.extract,
-      genre: "Outros",
-      imageUrl: normalizeHttpsImageUrl(data.thumbnail?.source),
-    };
   }
 
   return null;
@@ -622,13 +652,17 @@ async function enrichWithWikipedia(result: BookLookupResult | null) {
 }
 
 async function lookupByTitleOrAuthor(query: string): Promise<BookLookupResult | null> {
-  const googleResult = await lookupGoogleBooksByQuery(query);
+  const googleResult = await safeLookupStep(`Google Books query: ${query}`, () =>
+    lookupGoogleBooksByQuery(query)
+  );
 
   if (googleResult?.title) {
     return enrichWithWikipedia(googleResult);
   }
 
-  const openLibraryResult = await lookupOpenLibraryGeneralSearch(query);
+  const openLibraryResult = await safeLookupStep(`Open Library query: ${query}`, () =>
+    lookupOpenLibraryGeneralSearch(query)
+  );
 
   if (openLibraryResult?.title) {
     return enrichWithWikipedia(openLibraryResult);
@@ -644,22 +678,32 @@ async function lookupByTitleOrAuthor(query: string): Promise<BookLookupResult | 
 }
 
 async function lookupByIsbn(isbn: string) {
-  const googleResult = await lookupGoogleBooks(isbn);
+  const googleResult = await safeLookupStep(`Google Books ISBN flow: ${isbn}`, () =>
+    lookupGoogleBooks(isbn)
+  );
 
   if (googleResult?.title) {
     return enrichWithWikipedia(googleResult);
   }
 
-  const openLibraryResult = await lookupOpenLibrary(isbn);
+  const openLibraryResult = await safeLookupStep(`Open Library ISBN flow: ${isbn}`, () =>
+    lookupOpenLibrary(isbn)
+  );
 
   if (openLibraryResult?.title) {
     return enrichWithWikipedia(openLibraryResult);
   }
 
   const webResult =
-    (await lookupWebSearch(`ISBN ${isbn} livro`)) ??
-    (await lookupWebSearch(`ISBN ${formatIsbn13(isbn)} livro`)) ??
-    (await lookupWebSearch(`"${isbn}" livro`));
+    (await safeLookupStep(`Web Search ISBN livro: ${isbn}`, () =>
+      lookupWebSearch(`ISBN ${isbn} livro`)
+    )) ??
+    (await safeLookupStep(`Web Search ISBN formatado: ${isbn}`, () =>
+      lookupWebSearch(`ISBN ${formatIsbn13(isbn)} livro`)
+    )) ??
+    (await safeLookupStep(`Web Search ISBN exato: ${isbn}`, () =>
+      lookupWebSearch(`"${isbn}" livro`)
+    ));
 
   if (webResult?.title) {
     const enrichedByTitle = await lookupByTitleOrAuthor(webResult.title);
@@ -684,37 +728,29 @@ export async function GET(request: Request) {
     );
   }
 
-  try {
-    if (isbn.length >= 10) {
-      const isbnResult = await lookupByIsbn(isbn);
-
-      if (isbnResult?.title) {
-        return NextResponse.json(isbnResult);
-      }
-    }
-
-    if (query.length >= 3) {
-      const queryResult = await lookupByTitleOrAuthor(query);
-
-      if (queryResult?.title) {
-        return NextResponse.json(queryResult);
-      }
-    }
-
-    return NextResponse.json({
-      found: false,
-      message:
-        "Nenhum livro encontrado nas bases disponíveis. Confira o ISBN ou tente buscar por título e autor.",
-    });
-  } catch (error) {
-    console.error("Erro ao buscar livro:", { isbn, query, error });
-
-    return NextResponse.json(
-      {
-        found: false,
-        message: "Erro ao consultar dados do livro. Tente novamente mais tarde.",
-      },
-      { status: 500 }
+  if (isbn.length >= 10) {
+    const isbnResult = await safeLookupStep(`Fluxo completo por ISBN: ${isbn}`, () =>
+      lookupByIsbn(isbn)
     );
+
+    if (isbnResult?.title) {
+      return NextResponse.json(isbnResult);
+    }
   }
+
+  if (query.length >= 3) {
+    const queryResult = await safeLookupStep(`Fluxo completo por título/autor: ${query}`, () =>
+      lookupByTitleOrAuthor(query)
+    );
+
+    if (queryResult?.title) {
+      return NextResponse.json(queryResult);
+    }
+  }
+
+  return NextResponse.json({
+    found: false,
+    message:
+      "Nenhum livro encontrado nas bases disponíveis. Confira o ISBN ou tente buscar por título e autor.",
+  });
 }

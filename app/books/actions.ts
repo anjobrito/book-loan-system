@@ -69,6 +69,38 @@ function getControlledGenre(formData: FormData): string | null {
   return isValidBookGenre(genre) ? genre : null;
 }
 
+function getCodePrefix(type: string) {
+  if (type === "COMIC") {
+    return "COMIC";
+  }
+
+  if (type === "MANGA") {
+    return "MANGA";
+  }
+
+  return "LIV";
+}
+
+async function generateUniqueCopyCode(type: string) {
+  const prefix = getCodePrefix(type);
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const code = `${prefix}-${suffix}`;
+    const existingCopy = await prisma.bookCopy.findUnique({
+      where: {
+        code,
+      },
+    });
+
+    if (!existingCopy) {
+      return code;
+    }
+  }
+
+  return `${prefix}-${Date.now()}`;
+}
+
 export async function createBookAction(
   _previousState: CreateBookState,
   formData: FormData
@@ -85,7 +117,8 @@ export async function createBookAction(
 
     const title = getRequiredString(formData, "title");
     const type = getRequiredString(formData, "type");
-    const code = getRequiredString(formData, "code");
+    const submittedCode = getOptionalString(formData, "code");
+    const code = submittedCode ?? (await generateUniqueCopyCode(type));
     const genre = getControlledGenre(formData);
     const condition = getRequiredString(formData, "condition");
 
@@ -173,7 +206,7 @@ export async function updateBookAction(
     const bookId = getRequiredString(formData, "bookId");
     const title = getRequiredString(formData, "title");
     const type = getRequiredString(formData, "type");
-    const code = getRequiredString(formData, "code");
+    const submittedCode = getOptionalString(formData, "code");
     const genre = getControlledGenre(formData);
     const condition = getRequiredString(formData, "condition");
 
@@ -215,6 +248,8 @@ export async function updateBookAction(
         message: "Você só pode editar livros cadastrados por você.",
       };
     }
+
+    const code = submittedCode ?? copy.code;
 
     const existingCopy = await prisma.bookCopy.findFirst({
       where: {
@@ -278,6 +313,107 @@ export async function updateBookAction(
       message: "Erro ao atualizar livro. Verifique os campos e tente novamente.",
     };
   }
+}
+
+export async function deleteMyBookCopyAction(formData: FormData): Promise<void> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return;
+  }
+
+  const bookCopyId = formData.get("bookCopyId");
+
+  if (typeof bookCopyId !== "string" || bookCopyId.trim().length === 0) {
+    return;
+  }
+
+  const copy = await prisma.bookCopy.findUnique({
+    where: {
+      id: bookCopyId,
+    },
+    include: {
+      book: {
+        include: {
+          copies: true,
+        },
+      },
+      loans: true,
+      reservations: true,
+    },
+  });
+
+  if (!copy) {
+    return;
+  }
+
+  const canDelete = currentUser.role === "ADMIN" || copy.ownerId === currentUser.id;
+
+  if (!canDelete) {
+    return;
+  }
+
+  const hasActiveLoan = copy.loans.some((loan) => loan.status === "ACTIVE");
+  const hasActiveReservation = copy.reservations.some(
+    (reservation) => reservation.status === "ACTIVE"
+  );
+
+  if (hasActiveLoan || hasActiveReservation) {
+    return;
+  }
+
+  const loanIds = copy.loans.map((loan) => loan.id);
+  const isOnlyCopyForBook = copy.book.copies.length === 1;
+
+  await prisma.$transaction(async (tx) => {
+    if (loanIds.length > 0) {
+      await tx.notification.deleteMany({
+        where: {
+          loanId: {
+            in: loanIds,
+          },
+        },
+      });
+    }
+
+    await tx.loanHistory.deleteMany({
+      where: {
+        bookCopyId: copy.id,
+      },
+    });
+
+    await tx.reservation.deleteMany({
+      where: {
+        bookCopyId: copy.id,
+      },
+    });
+
+    await tx.loan.deleteMany({
+      where: {
+        bookCopyId: copy.id,
+      },
+    });
+
+    await tx.bookCopy.delete({
+      where: {
+        id: copy.id,
+      },
+    });
+
+    if (isOnlyCopyForBook) {
+      await tx.book.delete({
+        where: {
+          id: copy.bookId,
+        },
+      });
+    }
+  });
+
+  revalidatePath("/books");
+  revalidatePath("/admin");
+  revalidatePath("/admin/loans");
+  revalidatePath("/admin/reservations");
+  revalidatePath("/admin/notifications");
 }
 
 export async function requestLoanAction(formData: FormData): Promise<void> {

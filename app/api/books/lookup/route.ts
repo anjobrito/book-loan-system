@@ -64,6 +64,16 @@ class ProviderQuotaError extends Error {
   }
 }
 
+function isProviderEnabled(name: string, defaultValue: boolean) {
+  const value = process.env[name];
+
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return value.toLocaleLowerCase("pt-BR") === "true";
+}
+
 function sanitizeIsbn(value: string) {
   return value.replace(/[^0-9Xx]/g, "").toUpperCase();
 }
@@ -293,6 +303,10 @@ async function lookupGoogleBooksByQuery(
 }
 
 async function lookupGoogleBooks(isbn: string): Promise<BookLookupResult | null> {
+  if (!isProviderEnabled("ENABLE_GOOGLE_BOOKS_LOOKUP", true)) {
+    return null;
+  }
+
   const queries = getGoogleQueriesForIsbn(isbn);
 
   for (const query of queries) {
@@ -503,6 +517,10 @@ async function lookupOpenLibraryGeneralSearch(query: string): Promise<BookLookup
 }
 
 async function lookupOpenLibrary(isbn: string): Promise<BookLookupResult | null> {
+  if (!isProviderEnabled("ENABLE_OPEN_LIBRARY_LOOKUP", true)) {
+    return null;
+  }
+
   const candidates = getIsbnCandidates(isbn);
 
   for (const candidate of candidates) {
@@ -573,6 +591,10 @@ function mapWebSearchItemToLookup(item: GoogleCustomSearchItem): BookLookupResul
 }
 
 async function lookupWebSearch(query: string): Promise<BookLookupResult | null> {
+  if (!isProviderEnabled("ENABLE_GOOGLE_CUSTOM_SEARCH_LOOKUP", false)) {
+    return null;
+  }
+
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
@@ -617,6 +639,10 @@ async function lookupWebSearch(query: string): Promise<BookLookupResult | null> 
 }
 
 async function lookupWikipediaSummary(title?: string): Promise<BookLookupResult | null> {
+  if (!isProviderEnabled("ENABLE_WIKIPEDIA_LOOKUP", true)) {
+    return null;
+  }
+
   if (!title || title.trim().length < 3) {
     return null;
   }
@@ -772,6 +798,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     found: false,
     message:
-      "Nenhum livro encontrado nas bases disponíveis. Confira o ISBN ou tente buscar por título e autor.",
+      isbn.length >= 10
+        ? "Não encontrei esse ISBN nas bases disponíveis. Tente buscar pelo título e autor para preencher os dados automaticamente."
+        : "Nenhum livro encontrado nas bases disponíveis. Tente informar título e autor juntos.",
   });
 }

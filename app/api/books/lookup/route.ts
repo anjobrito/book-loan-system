@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeBookGenre, isValidBookGenre } from "@/lib/book-options";
 
 type BookLookupResult = {
   found: boolean;
@@ -9,12 +10,14 @@ type BookLookupResult = {
   publicationYear?: number;
   synopsis?: string;
   genre?: string;
+  edition?: string;
   imageUrl?: string;
   message?: string;
 };
 
 type GoogleVolumeInfo = {
   title?: string;
+  subtitle?: string;
   authors?: string[];
   publisher?: string;
   publishedDate?: string;
@@ -59,6 +62,31 @@ function normalizeHttpsImageUrl(value?: string) {
   return value;
 }
 
+function normalizeLookupGenre(value?: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalizedGenre = normalizeBookGenre(value);
+  return isValidBookGenre(normalizedGenre) ? normalizedGenre : "Outros";
+}
+
+function getGoogleEdition(volume: GoogleVolumeInfo) {
+  if (!volume.subtitle) {
+    return undefined;
+  }
+
+  const lowerSubtitle = volume.subtitle.toLocaleLowerCase("pt-BR");
+  const looksLikeEdition =
+    lowerSubtitle.includes("edição") ||
+    lowerSubtitle.includes("edicao") ||
+    lowerSubtitle.includes("edition") ||
+    lowerSubtitle.includes("volume") ||
+    lowerSubtitle.includes("vol.");
+
+  return looksLikeEdition ? volume.subtitle : undefined;
+}
+
 function convertIsbn13ToIsbn10(isbn: string) {
   if (!/^978\d{10}$/.test(isbn)) {
     return undefined;
@@ -101,7 +129,8 @@ function mapGoogleVolume(volume: GoogleVolumeInfo): BookLookupResult | null {
     publisher: volume.publisher,
     publicationYear: getYear(volume.publishedDate),
     synopsis: volume.description,
-    genre: Array.isArray(volume.categories) ? volume.categories[0] : undefined,
+    genre: normalizeLookupGenre(Array.isArray(volume.categories) ? volume.categories[0] : undefined),
+    edition: getGoogleEdition(volume),
     imageUrl: normalizeHttpsImageUrl(
       volume.imageLinks?.thumbnail ?? volume.imageLinks?.smallThumbnail
     ),
@@ -218,7 +247,8 @@ async function lookupOpenLibraryIsbnEndpoint(isbn: string): Promise<BookLookupRe
       typeof data.description === "string"
         ? data.description
         : data.description?.value,
-    genre: Array.isArray(data.subjects) ? data.subjects[0] : undefined,
+    genre: normalizeLookupGenre(Array.isArray(data.subjects) ? data.subjects[0] : undefined),
+    edition: Array.isArray(data.edition_name) ? data.edition_name[0] : data.edition_name,
     imageUrl: `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`,
   };
 }
@@ -256,7 +286,8 @@ async function lookupOpenLibraryBooksApi(isbn: string): Promise<BookLookupResult
     publisher: Array.isArray(book.publishers) ? book.publishers[0]?.name : undefined,
     publicationYear: getYear(book.publish_date),
     synopsis: book.excerpts?.[0]?.text,
-    genre: Array.isArray(book.subjects) ? book.subjects[0]?.name : undefined,
+    genre: normalizeLookupGenre(Array.isArray(book.subjects) ? book.subjects[0]?.name : undefined),
+    edition: Array.isArray(book.identifiers?.edition) ? book.identifiers.edition[0] : undefined,
     imageUrl: normalizeHttpsImageUrl(book.cover?.large ?? book.cover?.medium ?? book.cover?.small),
   };
 }
@@ -289,7 +320,8 @@ async function lookupOpenLibrarySearch(isbn: string): Promise<BookLookupResult |
     author: Array.isArray(doc.author_name) ? doc.author_name.join(", ") : undefined,
     publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : undefined,
     publicationYear: doc.first_publish_year,
-    genre: Array.isArray(doc.subject) ? doc.subject[0] : undefined,
+    genre: normalizeLookupGenre(Array.isArray(doc.subject) ? doc.subject[0] : undefined),
+    edition: Array.isArray(doc.edition_key) ? doc.edition_key[0] : undefined,
     imageUrl: `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`,
   };
 }
@@ -345,7 +377,8 @@ async function lookupByTitleOrAuthor(query: string): Promise<BookLookupResult | 
     author: Array.isArray(doc.author_name) ? doc.author_name.join(", ") : undefined,
     publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : undefined,
     publicationYear: doc.first_publish_year,
-    genre: Array.isArray(doc.subject) ? doc.subject[0] : undefined,
+    genre: normalizeLookupGenre(Array.isArray(doc.subject) ? doc.subject[0] : undefined),
+    edition: Array.isArray(doc.edition_key) ? doc.edition_key[0] : undefined,
     imageUrl: doc.cover_i
       ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`
       : undefined,

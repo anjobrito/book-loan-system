@@ -138,9 +138,16 @@ export default function NewBookForm() {
     }
     if (data.imageUrl) setImageUrl(data.imageUrl);
 
-    setLookupMessage(
-      `Dados encontrados em ${data.source === "OPEN_LIBRARY" ? "Open Library" : "Google Books"}. Revise antes de cadastrar.`
-    );
+    const sourceLabel =
+      data.source === "OPEN_LIBRARY"
+        ? "Open Library"
+        : data.source === "WIKIPEDIA"
+          ? "Wikipedia"
+          : data.source === "WEB_SEARCH"
+            ? "busca web"
+            : "Google Books";
+
+    setLookupMessage(`Dados encontrados em ${sourceLabel}. Revise antes de cadastrar.`);
   }
 
   async function lookupBookByIsbn() {
@@ -161,14 +168,17 @@ export default function NewBookForm() {
 
       if (!response.ok || !data.found) {
         setLookupMessage(
-          `${data.message ?? "Nenhum livro encontrado para este ISBN."} Tente a busca por título/autor abaixo.`
+          data.message ??
+            "Não encontrei esse ISBN automaticamente. Tente buscar por título e autor, por exemplo: O Assassinato de Roger Ackroyd Agatha Christie."
         );
         return;
       }
 
       applyLookupData(data);
     } catch {
-      setLookupMessage("Erro ao buscar dados do livro. Tente novamente.");
+      setLookupMessage(
+        "Não consegui consultar as bases externas agora. Você pode tentar a busca por título/autor ou preencher manualmente."
+      );
     } finally {
       setIsLookupLoading(false);
     }
@@ -191,13 +201,18 @@ export default function NewBookForm() {
       const data = (await response.json()) as BookLookupResult;
 
       if (!response.ok || !data.found) {
-        setLookupMessage(data.message ?? "Nenhum resultado encontrado para essa busca.");
+        setLookupMessage(
+          data.message ??
+            "Nenhum resultado encontrado. Tente informar título e autor juntos ou preencha os dados manualmente."
+        );
         return;
       }
 
       applyLookupData(data);
     } catch {
-      setLookupMessage("Erro ao buscar dados do livro. Tente novamente.");
+      setLookupMessage(
+        "Não consegui consultar as bases externas agora. Você ainda pode preencher o cadastro manualmente."
+      );
     } finally {
       setIsLookupLoading(false);
     }

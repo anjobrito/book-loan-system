@@ -25,6 +25,7 @@ type BookLookupResult = {
   publicationYear?: number;
   synopsis?: string;
   genre?: string;
+  edition?: string;
   imageUrl?: string;
   message?: string;
 };
@@ -112,12 +113,25 @@ export default function NewBookForm() {
     }
   }, [state.success, router]);
 
+  function clearBookFieldsBeforeLookup() {
+    setTitle("");
+    setType("BOOK");
+    setGenre("");
+    setAuthor("");
+    setPublisher("");
+    setEdition("");
+    setPublicationYear("");
+    setImageUrl("");
+    setSynopsis("");
+  }
+
   function applyLookupData(data: BookLookupResult) {
     if (data.title) setTitle(data.title);
     if (data.author) setAuthor(data.author);
     if (data.publisher) setPublisher(data.publisher);
     if (data.publicationYear) setPublicationYear(String(data.publicationYear));
     if (data.synopsis) setSynopsis(data.synopsis);
+    if (data.edition) setEdition(data.edition);
     if (data.genre) {
       const normalizedGenre = normalizeBookGenre(data.genre);
       setGenre(isValidBookGenre(normalizedGenre) ? normalizedGenre : "Outros");
@@ -137,6 +151,7 @@ export default function NewBookForm() {
       return;
     }
 
+    clearBookFieldsBeforeLookup();
     setIsLookupLoading(true);
     setLookupMessage("Buscando dados do livro...");
 
@@ -167,6 +182,7 @@ export default function NewBookForm() {
       return;
     }
 
+    clearBookFieldsBeforeLookup();
     setIsLookupLoading(true);
     setLookupMessage("Buscando dados por título/autor...");
 
@@ -263,9 +279,8 @@ export default function NewBookForm() {
 
       <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
         <strong className="text-amber-300">Sobre o código do exemplar:</strong>{" "}
-        esse código identifica fisicamente o livro na troca. Use algo simples,
-        como LIV-001, MANGA-003 ou COMIC-010, e coloque o mesmo código em uma
-        etiqueta ou anotação no livro.
+        o código é opcional. Se ficar em branco, o sistema gera um código automático
+        para identificar o exemplar.
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
@@ -305,9 +320,8 @@ export default function NewBookForm() {
         <FormField
           label="Código do exemplar"
           name="code"
-          required
-          placeholder="Ex: LIV-001"
-          helpText="Pegue esse código do próprio livro ou crie um novo código e marque no exemplar físico. Ele ajuda a identificar o livro correto no dia da troca."
+          placeholder="Deixe em branco para gerar automaticamente"
+          helpText="Campo opcional. Use somente se o exemplar físico já tiver um código próprio."
         />
 
         <div>
